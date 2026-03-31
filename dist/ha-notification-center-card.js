@@ -4,7 +4,8 @@
  * Renders a notification chip + floating panel from
  * sensor.ha_notification_center_feed attributes.
  *
- * Dependencies: none (standalone web component)
+  * Dependencies: none (standalone web component)
+ * Version: 1.0.1
  * Install: automatic via integration static path
  */
 class HaNotificationCenterCard extends HTMLElement {
@@ -13,8 +14,8 @@ class HaNotificationCenterCard extends HTMLElement {
       show_chip: true,
       show_panel: true,
       max_items: 50,
-      entity: "sensor.ha_notification_center_feed",
-      critical_entity: "binary_sensor.ha_notification_center_any_critical",
+      entity: "sensor.notification_feed",
+      critical_entity: "binary_sensor.notification_any_critical",
       ...config,
     };
   }
