@@ -2,6 +2,8 @@ class NotificationChipCard extends HTMLElement {
   setConfig(config) {
     this._config = config;
     this.attachShadow({ mode: "open" });
+    this._expandedSnooze = null;
+    this._clickOutsideHandler = null;
   }
 
   set hass(hass) {
@@ -9,198 +11,328 @@ class NotificationChipCard extends HTMLElement {
     this._render();
   }
 
-  _render() {
-    if (!this._hass || !this._config) return;
+  disconnectedCallback() {
+    if (this._clickOutsideHandler) {
+      document.removeEventListener("click", this._clickOutsideHandler, true);
+      this._clickOutsideHandler = null;
+    }
+  }
+
+  _toggleSnooze(sourceId) {
+    this._expandedSnooze = this._expandedSnooze === sourceId ? null : sourceId;
+    this._render();
+  }
+
+  _handleChipClick() {
+    this._hass.callService("ha_notification_center", "toggle_dropdown");
+  }
+
+  _handleClickOutside(e) {
+    const dropdown = this.shadowRoot.getElementById("dropdown");
+    const chip = this.shadowRoot.getElementById("chip");
+    if (dropdown && chip && !dropdown.contains(e.target) && !chip.contains(e.target)) {
+      const entity = this._hass.states[this._config?.entity || "sensor.notification_feed"];
+      if (entity?.attributes.dropdown_open) {
+        this._hass.callService("ha_notification_center", "toggle_dropdown");
+      }
+    }
+  }
+
+  _handleAcknowledge(sourceId, e) {
+    e.stopPropagation();
+    this._hass.callService("ha_notification_center", "acknowledge", { source_id: sourceId });
+  }
+
+  _handleSnooze(sourceId, hours, e) {
+    e.stopPropagation();
+    this._hass.callService("ha_notification_center", "snooze", {
+      source_id: sourceId,
+      duration_hours: hours
+    });
+    this._expandedSnooze = null;
+  }
+
+  _handleTap(eid) {
+    if (!eid) return;
+    // Try to toggle the source entity directly
+    const state = this._hass.states[eid];
+    if (state) {
+      const domain = eid.split(".")[0];
+      if (domain === "binary_sensor" || domain === "sensor") {
+        // For sensors, navigate to the entity
+        window.history.pushState({}, "", `/config/dashboard/devices/device/${state.attributes.device_id || eid}`);
+        window.dispatchEvent(new Event("location-changed"));
+      } else {
+        const service = state.state === "on" ? "turn_off" : "turn_on";
+        this._hass.callService(domain, service, { entity_id: eid });
+      }
+    }
+  }
+
+  render() {
+    if (!this._hass || !this._config) return "";
     const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
-    if (!entity) return;
+    if (!entity) return "";
 
     const notifications = entity.attributes.notifications || [];
     const dropdownOpen = entity.attributes.dropdown_open === true;
     const count = parseInt(entity.state) || 0;
 
-    const prio = { critical: { color: "var(--error-color, #db4437)", label: "CRITICAL" }, warning: { color: "var(--warning-color, #ff9800)", label: "WARNING" }, info: { color: "var(--info-color, #2196f3)", label: "INFO" } };
+    const prio = {
+      critical: { color: "var(--error-color, #db4437)", label: "Critical", bg: "rgba(219,68,55,0.08)" },
+      warning: { color: "var(--warning-color, #ff9800)", label: "Warning", bg: "rgba(255,152,0,0.08)" },
+      info: { color: "var(--info-color, #2196f3)", label: "Info", bg: "rgba(33,150,243,0.08)" }
+    };
     const order = { critical: 0, warning: 1, info: 2 };
     const sorted = [...notifications].sort((a, b) => (order[a.priority] ?? 9) - (order[b.priority] ?? 9));
     const presentPrios = [...new Set(sorted.map(n => n.priority))];
 
-    // Determine chip color
-    let chipColor = "var(--secondary-text-color, #727272)";
-    let chipBg = "var(--card-background-color, #fff)";
-    if (sorted.some(n => n.priority === "critical")) { chipColor = "var(--error-color, #db4437)"; chipBg = "color-mix(in srgb, var(--error-color, #db4437) 22%, var(--card-background-color, #fff))"; }
-    else if (sorted.some(n => n.priority === "warning")) { chipColor = "var(--warning-color, #ff9800)"; chipBg = "color-mix(in srgb, var(--warning-color, #ff9800) 22%, var(--card-background-color, #fff))"; }
-    else if (count > 0) { chipColor = "var(--info-color, #2196f3)"; chipBg = "color-mix(in srgb, var(--info-color, #2196f3) 22%, var(--card-background-color, #fff))"; }
+    // Chip color
+    let chipColor = "var(--secondary-text-color, #9e9e9e)";
+    let chipBg = "rgba(158,158,158,0.12)";
+    if (sorted.some(n => n.priority === "critical")) {
+      chipColor = "#db4437";
+      chipBg = "rgba(219,68,55,0.15)";
+    } else if (sorted.some(n => n.priority === "warning")) {
+      chipColor = "#ff9800";
+      chipBg = "rgba(255,152,0,0.15)";
+    } else if (count > 0) {
+      chipColor = "#2196f3";
+      chipBg = "rgba(33,150,243,0.15)";
+    }
 
-    const snoozeUntil = (sourceId, hours) => {
-      const until = new Date(Date.now() + hours * 3600000);
-      this._hass.callService("ha_notification_center", "snooze", { source_id: sourceId, duration_hours: hours });
-    };
+    // Legend
+    const legend = ["critical", "warning", "info"]
+      .filter(p => presentPrios.includes(p))
+      .map(p => {
+        const s = prio[p];
+        const c = sorted.filter(n => n.priority === p).length;
+        return `<span class="legend-item"><span class="legend-dot" style="background:${s.color}"></span>${s.label}<span class="legend-count">${c}</span></span>`;
+      }).join("");
 
-    const snoozeBtns = (sourceId) => {
-      const now = new Date();
-      const pad = n => String(n).padStart(2, "0");
-      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
-      const h1 = new Date(Date.now() + 3600000);
-      const h4 = new Date(Date.now() + 14400000);
-      const tom = new Date(now); tom.setDate(tom.getDate()+1); tom.setHours(8,0,0,0);
-      const dat = new Date(now); dat.setDate(dat.getDate()+2); dat.setHours(8,0,0,0);
-      return `<div class="snooze-bar">
-        <span class="snooze-label">Snooze:</span>
-        <button data-slug="${sourceId}" data-hours="1">1h</button>
-        <button data-slug="${sourceId}" data-hours="4">4h</button>
-        <button data-slug="${sourceId}" data-hours="24">Tomorrow</button>
-        <button data-slug="${sourceId}" data-hours="48">Day after</button>
-      </div>`;
-    };
-
-    const legend = ["critical","warning","info"].filter(p => presentPrios.includes(p)).map(p => {
-      const s = prio[p];
-      return `<span class="legend-item"><span class="legend-dot" style="background:${s.color}"></span><span class="legend-label">${p}</span></span>`;
-    }).join("");
-
+    // Notification items
     let itemsHtml = "";
     sorted.forEach(item => {
       const style = prio[item.priority] || prio.info;
       const eid = item.tap_action_entity || "";
-      itemsHtml += `<div class="notif-item" style="background:color-mix(in srgb, ${style.color} 8%, var(--card-background-color, #fff));">
-        <div class="notif-content" data-entity="${eid}">
-          <div class="notif-avatar" style="background:${style.color};box-shadow:0 2px 8px color-mix(in srgb, ${style.color} 40%, transparent);">
-            <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
+      const isSnoozeOpen = this._expandedSnooze === item.source_id;
+      const isAcked = item.acknowledged === true;
+      const ago = item.timestamp ? this._timeAgo(item.timestamp) : "";
+
+      itemsHtml += `
+        <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}">
+          <div class="notif-content" data-entity="${eid}">
+            <div class="notif-avatar" style="background:${style.color}">
+              <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
+            </div>
+            <div class="notif-text">
+              <div class="notif-title">${item.name || ""}</div>
+              ${item.description ? `<div class="notif-desc">${item.description}</div>` : ""}
+            </div>
+            <div class="notif-actions">
+              ${ago ? `<span class="notif-time">${ago}</span>` : ""}
+              <button class="icon-btn ack-btn" data-source="${item.source_id}" title="Acknowledge">
+                <ha-icon icon="mdi:check-circle${isAcked ? "" : "-outline"}"></ha-icon>
+              </button>
+              <button class="icon-btn snooze-btn" data-source="${item.source_id}" title="Snooze">
+                <ha-icon icon="mdi:timer-outline"></ha-icon>
+              </button>
+            </div>
           </div>
-          <div class="notif-text">
-            <div class="notif-title">${item.name || ""}</div>
-            ${item.description ? `<div class="notif-desc">${item.description}</div>` : ""}
+          <div class="snooze-panel" style="display:${isSnoozeOpen ? "flex" : "none"}">
+            <button data-hours="1" data-source="${item.source_id}">1h</button>
+            <button data-hours="4" data-source="${item.source_id}">4h</button>
+            <button data-hours="24" data-source="${item.source_id}">Tomorrow</button>
+            <button data-hours="48" data-source="${item.source_id}">Day after</button>
           </div>
-          <button class="snooze-toggle" data-toggle="${item.source_id}" title="Snooze">
-            <ha-icon icon="mdi:timer-outline"></ha-icon>
-          </button>
-        </div>
-        <div class="snooze-options" id="snooze-${item.source_id}" style="display:none;">
-          ${snoozeBtns(item.source_id)}
-        </div>
-      </div>`;
+        </div>`;
     });
 
-    const dropdownDisplay = dropdownOpen && count > 0 ? "block" : "none";
+    const dropdownVisible = dropdownOpen && count > 0;
+    const emptyState = dropdownOpen && count === 0
+      ? `<div class="empty-state"><ha-icon icon="mdi:bell-check-outline"></ha-icon><span>No notifications</span></div>`
+      : "";
 
-    this.shadowRoot.innerHTML = `
+    return `
       <style>
-        :host { position: relative; display: inline-block; z-index: 1; }
+        :host { position: relative; display: inline-block; }
         .chip {
           width: 40px; height: 40px; border-radius: 50%;
           background: ${chipBg}; display: flex; align-items: center; justify-content: center;
-          cursor: pointer; position: relative; transition: background 0.15s;
+          cursor: pointer; transition: all 0.2s; position: relative;
         }
-        .chip:hover { filter: brightness(0.95); }
-        .chip ha-icon { --mdc-icon-size: 24px; color: ${chipColor}; }
+        .chip:hover { filter: brightness(0.92); transform: scale(1.05); }
+        .chip:active { transform: scale(0.95); }
+        .chip ha-icon { --mdc-icon-size: 22px; color: ${chipColor}; transition: color 0.2s; }
         .badge {
-          position: absolute; top: -4px; right: -4px;
+          position: absolute; top: -3px; right: -3px;
           min-width: 18px; height: 18px; border-radius: 9px;
-          padding: 0 4px; font-size: 11px; font-weight: 700;
-          line-height: 18px; text-align: center; color: white;
-          background: var(--primary-color, #03a9f4);
+          padding: 0 5px; font-size: 10px; font-weight: 700;
+          line-height: 18px; text-align: center; color: #fff;
+          background: ${count > 0 ? (sorted.some(n => n.priority === "critical") ? "#db4437" : sorted.some(n => n.priority === "warning") ? "#ff9800" : "#2196f3") : "transparent"};
           display: ${count > 0 ? "block" : "none"};
+          box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+          animation: ${count > 0 ? "badge-pop 0.3s ease" : "none"};
         }
+        @keyframes badge-pop {
+          0% { transform: scale(0.5); opacity: 0; }
+          60% { transform: scale(1.15); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Dropdown */
         .dropdown {
-          position: absolute; top: calc(100% + 8px); left: 0;
-          width: 320px; background: transparent;
-          border-radius: 0; border: none; box-shadow: none;
-          overflow: visible; z-index: 999;
-          display: ${dropdownDisplay};
-        }
-        .legend-bar {
+          position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+          width: 340px; max-height: 420px; overflow-y: auto;
           background: var(--card-background-color, #fff);
-          border-radius: 14px; padding: 10px 14px; margin-bottom: 8px;
+          border-radius: 16px; border: none;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+          z-index: 9999; padding: 10px;
+          display: ${dropdownVisible ? "block" : "none"};
+          animation: dropdown-in 0.2s ease;
+        }
+        @keyframes dropdown-in {
+          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .dropdown::-webkit-scrollbar { width: 4px; }
+        .dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+        /* Legend */
+        .legend-bar {
           display: flex; justify-content: space-between; align-items: center;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+          padding: 8px 4px; margin-bottom: 6px;
+          border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.08));
         }
-        .legend-items { display: flex; gap: 10px; align-items: center; }
-        .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+        .legend-items { display: flex; gap: 12px; }
+        .legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--secondary-text-color, #757575); text-transform: capitalize; }
         .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .legend-label { font-size: 10px; font-weight: 600; color: var(--secondary-text-color, #727272); text-transform: capitalize; }
-        .legend-count { font-size: 11px; font-weight: 700; color: var(--secondary-text-color, #727272); letter-spacing: 0.04em; }
+        .legend-count { font-size: 10px; color: var(--secondary-text-color, #9e9e9e); margin-left: 2px; }
+
+        /* Notification item */
         .notif-item {
-          border-radius: 16px; margin-bottom: 8px; overflow: hidden;
-          box-shadow: inset 0 0 12px color-mix(in srgb, var(--info-color, #2196f3) 12%, transparent),
-                     0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
+          border-radius: 12px; margin-bottom: 6px; overflow: hidden;
+          transition: all 0.15s;
+          background: var(--primary-background-color, #f5f5f5);
         }
+        .notif-item:last-child { margin-bottom: 0; }
+        .notif-item[data-priority="critical"] { background: rgba(219,68,55,0.06); border-left: 3px solid #db4437; }
+        .notif-item[data-priority="warning"] { background: rgba(255,152,0,0.06); border-left: 3px solid #ff9800; }
+        .notif-item[data-priority="info"] { background: rgba(33,150,243,0.06); border-left: 3px solid #2196f3; }
+        .notif-item.acked { opacity: 0.55; }
+
         .notif-content {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 6px 10px 12px; cursor: pointer; transition: background 0.15s;
+          display: flex; align-items: center; gap: 10px;
+          padding: 8px 6px 8px 10px; cursor: pointer; transition: background 0.15s;
         }
-        .notif-content:hover { background: rgba(128,128,128,0.08); }
+        .notif-content:hover { background: rgba(128,128,128,0.06); }
+
         .notif-avatar {
-          width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+          width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
         }
-        .notif-avatar ha-icon { --mdc-icon-size: 22px; color: white; }
-        .notif-text { flex: 1; min-width: 0; text-align: left; }
-        .notif-title { font-size: 13px; font-weight: 600; color: var(--primary-text-color, #212121); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-        .notif-desc { font-size: 11px; color: var(--secondary-text-color, #727272); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .snooze-toggle {
+        .notif-avatar ha-icon { --mdc-icon-size: 20px; color: #fff; }
+
+        .notif-text { flex: 1; min-width: 0; }
+        .notif-title { font-size: 13px; font-weight: 600; color: var(--primary-text-color, #212121); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .notif-desc { font-size: 11px; color: var(--secondary-text-color, #757575); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+        .notif-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+        .notif-time { font-size: 10px; color: var(--secondary-text-color, #9e9e9e); white-space: nowrap; margin-right: 4px; }
+        .icon-btn {
           display: inline-flex; align-items: center; justify-content: center;
-          border: none; background: transparent; padding: 6px;
-          color: var(--secondary-text-color, #727272); opacity: 0.6; cursor: pointer;
-          border-radius: 8px; transition: opacity 0.15s, background 0.15s;
-          border-left: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-          margin-left: 4px;
+          border: none; background: transparent; padding: 4px;
+          color: var(--secondary-text-color, #9e9e9e); cursor: pointer;
+          border-radius: 6px; transition: all 0.15s;
         }
-        .snooze-toggle:hover { opacity: 1; background: rgba(128,128,128,0.1); }
-        .snooze-toggle ha-icon { --mdc-icon-size: 18px; }
-        .snooze-options {
-          padding: 8px 12px;
-          background: var(--secondary-background-color, #f2f2f2);
-          border-top: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-          display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+        .icon-btn:hover { background: rgba(128,128,128,0.12); color: var(--primary-text-color, #212121); }
+        .icon-btn ha-icon { --mdc-icon-size: 18px; }
+        .ack-btn:hover { color: #4caf50; }
+
+        /* Snooze panel */
+        .snooze-panel {
+          display: flex; gap: 4px; padding: 6px 10px 8px 46px;
+          background: rgba(0,0,0,0.02);
+          border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+          flex-wrap: wrap;
         }
-        .snooze-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--secondary-text-color, #727272); letter-spacing: 0.06em; margin-right: 2px; }
-        .snooze-options button {
+        .snooze-panel button {
           border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-          border-radius: 6px; background: var(--card-background-color, #fff);
+          border-radius: 8px; background: var(--card-background-color, #fff);
           color: var(--primary-text-color, #212121);
-          font-size: 11px; font-weight: 600; padding: 4px 8px;
-          cursor: pointer; white-space: nowrap;
+          font-size: 11px; font-weight: 600; padding: 3px 10px;
+          cursor: pointer; transition: all 0.15s;
         }
-        .snooze-options button:hover { background: var(--divider-color, rgba(0,0,0,0.08)); }
+        .snooze-panel button:hover { background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color, #03a9f4); }
+
+        /* Empty state */
+        .empty-state {
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          padding: 24px 16px; color: var(--secondary-text-color, #9e9e9e);
+        }
+        .empty-state ha-icon { --mdc-icon-size: 36px; opacity: 0.4; }
+        .empty-state span { font-size: 13px; font-weight: 500; }
       </style>
+
       <div class="chip" id="chip">
         <ha-icon icon="${count > 0 ? (dropdownOpen ? "mdi:bell-ring" : "mdi:bell-badge") : "mdi:bell-outline"}"></ha-icon>
         <span class="badge">${count}</span>
       </div>
+
       <div class="dropdown" id="dropdown">
-        ${count > 0 ? `<div class="legend-bar"><div class="legend-items">${legend}</div><span class="legend-count">${sorted.length} active</span></div>` : ""}
+        ${count > 0 ? `<div class="legend-bar"><div class="legend-items">${legend}</div></div>` : ""}
         ${itemsHtml}
+        ${emptyState}
       </div>
     `;
+  }
 
-    // Event handlers
-    this.shadowRoot.getElementById("chip").addEventListener("click", () => {
-      this._hass.callService("ha_notification_center", "toggle_dropdown");
-    });
+  _timeAgo(ts) {
+    const diff = Date.now() - new Date(ts).getTime();
+    if (diff < 0) return "now";
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "now";
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    const d = Math.floor(h / 24);
+    return `${d}d`;
+  }
 
+  _render() {
+    this.shadowRoot.innerHTML = this.render();
+
+    // Chip click → toggle dropdown
+    this.shadowRoot.getElementById("chip")?.addEventListener("click", () => this._handleChipClick());
+
+    // Click outside → close dropdown
+    if (this._clickOutsideHandler) {
+      document.removeEventListener("click", this._clickOutsideHandler, true);
+    }
+    this._clickOutsideHandler = (e) => this._handleClickOutside(e);
+    setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 100);
+
+    // Tap notification → action
     this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
-      el.addEventListener("click", () => {
-        const eid = el.dataset.entity;
-        if (eid) this._hass.callService("browser_mod", "popup", { title: "Notification", content: eid });
+      el.addEventListener("click", () => this._handleTap(el.dataset.entity));
+    });
+
+    // Acknowledge buttons
+    this.shadowRoot.querySelectorAll(".ack-btn").forEach(el => {
+      el.addEventListener("click", (e) => this._handleAcknowledge(el.dataset.source, e));
+    });
+
+    // Snooze toggle buttons
+    this.shadowRoot.querySelectorAll(".snooze-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._toggleSnooze(el.dataset.source);
       });
     });
 
-    this.shadowRoot.querySelectorAll(".snooze-toggle[data-toggle]").forEach(el => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const slug = el.dataset.toggle;
-        const panel = this.shadowRoot.getElementById(`snooze-${slug}`);
-        if (panel) panel.style.display = panel.style.display === "none" ? "block" : "none";
-      });
-    });
-
-    this.shadowRoot.querySelectorAll(".snooze-options button[data-slug]").forEach(el => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._hass.callService("ha_notification_center", "snooze", {
-          source_id: el.dataset.slug,
-          duration_hours: parseInt(el.dataset.hours)
-        });
-      });
+    // Snooze option buttons
+    this.shadowRoot.querySelectorAll(".snooze-panel button").forEach(el => {
+      el.addEventListener("click", (e) => this._handleSnooze(el.dataset.source, parseInt(el.dataset.hours), e));
     });
   }
 
@@ -213,5 +345,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "notification-chip-card",
   name: "Notification Chip Card",
-  description: "Notification bell chip with dropdown panel and snooze"
+  description: "Notification bell chip with dropdown panel, snooze, and acknowledge",
+  preview: true
 });
