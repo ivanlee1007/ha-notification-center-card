@@ -87,11 +87,11 @@ class HaNotificationCenterCard extends HTMLElement {
         .chip:hover { opacity: 0.9; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .panel {
-          position: fixed; top: 64px; right: 16px; z-index: 999;
-          width: 380px; max-height: 70vh; overflow-y: auto;
+          display: none;
+          width: 100%; max-height: 70vh; overflow-y: auto;
           background: var(--card-background-color, #fff);
           border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          padding: 0; display: none;
+          padding: 0; margin-top: 8px;
         }
         .panel.open { display: block; }
         .panel-header {
