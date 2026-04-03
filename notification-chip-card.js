@@ -384,12 +384,17 @@ class NotificationChipCardEditor extends HTMLElement {
     this._render();
   }
 
-  _schema() {
+  _sourceSchema() {
     return [
       {
         name: "entity",
         selector: { entity: { domain: "sensor" } },
       },
+    ];
+  }
+
+  _displaySchema() {
+    return [
       {
         name: "label",
         selector: { text: {} },
@@ -424,7 +429,24 @@ class NotificationChipCardEditor extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
-        .wrap { display: grid; gap: 12px; }
+        .wrap { display: grid; gap: 16px; }
+        .section {
+          display: grid;
+          gap: 10px;
+          padding: 16px;
+          border-radius: 16px;
+          background: var(--secondary-background-color, rgba(127,127,127,0.08));
+        }
+        .section-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--primary-text-color);
+        }
+        .section-desc {
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          line-height: 1.5;
+        }
         .hint {
           color: var(--secondary-text-color);
           font-size: 13px;
@@ -432,17 +454,33 @@ class NotificationChipCardEditor extends HTMLElement {
         }
       </style>
       <div class="wrap">
-        <ha-form id="form"></ha-form>
+        <div class="section">
+          <div class="section-title">資料來源</div>
+          <div class="section-desc">指定 chip 要讀取的通知 feed sensor。</div>
+          <ha-form id="source-form"></ha-form>
+        </div>
+        <div class="section">
+          <div class="section-title">顯示選項</div>
+          <div class="section-desc">可替 chip 的 bell icon 加上文字標籤，例如「告警訊息」。</div>
+          <ha-form id="display-form"></ha-form>
+        </div>
         <div class="hint">這是符合 Home Assistant 規範的簡易 editor，可直接設定實體與按鈕文字。</div>
       </div>
     `;
 
-    const form = this.shadowRoot.getElementById("form");
-    form.hass = this._hass;
-    form.schema = this._schema();
-    form.data = this._config;
-    form.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
-    form.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+    const sourceForm = this.shadowRoot.getElementById("source-form");
+    sourceForm.hass = this._hass;
+    sourceForm.schema = this._sourceSchema();
+    sourceForm.data = this._config;
+    sourceForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    sourceForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+
+    const displayForm = this.shadowRoot.getElementById("display-form");
+    displayForm.hass = this._hass;
+    displayForm.schema = this._displaySchema();
+    displayForm.data = this._config;
+    displayForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    displayForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
   }
 }
 

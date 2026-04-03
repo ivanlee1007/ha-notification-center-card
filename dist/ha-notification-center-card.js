@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.0
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.1
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -436,7 +436,7 @@ class HaNotificationCenterCardEditor extends HTMLElement {
     this._render();
   }
 
-  _schema() {
+  _sourceSchema() {
     return [
       {
         name: "entity",
@@ -446,6 +446,11 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         name: "critical_entity",
         selector: { entity: { domain: "binary_sensor" } },
       },
+    ];
+  }
+
+  _displaySchema() {
+    return [
       {
         name: "button_label",
         selector: { text: {} },
@@ -499,7 +504,24 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         :host { display: block; }
         .wrap {
           display: grid;
-          gap: 12px;
+          gap: 16px;
+        }
+        .section {
+          display: grid;
+          gap: 10px;
+          padding: 16px;
+          border-radius: 16px;
+          background: var(--secondary-background-color, rgba(127,127,127,0.08));
+        }
+        .section-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--primary-text-color);
+        }
+        .section-desc {
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          line-height: 1.5;
         }
         .hint {
           color: var(--secondary-text-color);
@@ -508,17 +530,33 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         }
       </style>
       <div class="wrap">
-        <ha-form id="form"></ha-form>
-        <div class="hint">使用 HA 原生 editor。若只是要顯示 bell/chip 旁的文字，可填「按鈕文字」。</div>
+        <div class="section">
+          <div class="section-title">資料來源</div>
+          <div class="section-desc">設定卡片要讀哪個 feed sensor 與 critical 狀態 binary sensor。多數情況保留預設即可。</div>
+          <ha-form id="source-form"></ha-form>
+        </div>
+        <div class="section">
+          <div class="section-title">顯示選項</div>
+          <div class="section-desc">控制 bell/chip、展開面板與顯示筆數。若只想在 icon 旁顯示文字，可填「按鈕文字」。</div>
+          <ha-form id="display-form"></ha-form>
+        </div>
+        <div class="hint">這是 HA 原生 visual editor；你仍然可以切回 YAML 直接編輯。</div>
       </div>
     `;
 
-    const form = this.shadowRoot.getElementById("form");
-    form.hass = this._hass;
-    form.schema = this._schema();
-    form.data = this._config;
-    form.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
-    form.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+    const sourceForm = this.shadowRoot.getElementById("source-form");
+    sourceForm.hass = this._hass;
+    sourceForm.schema = this._sourceSchema();
+    sourceForm.data = this._config;
+    sourceForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    sourceForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+
+    const displayForm = this.shadowRoot.getElementById("display-form");
+    displayForm.hass = this._hass;
+    displayForm.schema = this._displaySchema();
+    displayForm.data = this._config;
+    displayForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    displayForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
   }
 }
 
