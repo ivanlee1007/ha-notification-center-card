@@ -1,14 +1,21 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.0.3
+ * UNiNUS Notification Center — Lovelace Custom Card v1.2.0
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
- * - Red bell icon + blue badge
+ * - Red bell icon + blue badge (+ optional text label)
  * - Color-coded pill items with square icon boxes
- * - Inline snooze buttons (1h / 4h / Tomorrow / Day after)
- * - Timer icon + scrollable list
+ * - Inline acknowledge + snooze actions
+ * - Frontend-local dropdown state (no cross-browser coupling)
  */
 class HaNotificationCenterCard extends HTMLElement {
+  disconnectedCallback() {
+    if (this._clickOutsideHandler) {
+      document.removeEventListener("click", this._clickOutsideHandler, true);
+      this._clickOutsideHandler = null;
+    }
+  }
+
   setConfig(config) {
     this._config = {
       show_chip: true,
@@ -41,7 +48,7 @@ class HaNotificationCenterCard extends HTMLElement {
     const buttonLabel = String(this._config.button_label || "").trim();
     const hasButtonLabel = buttonLabel.length > 0;
     const notifications = feed?.attributes?.notifications || [];
-    const dropdownOpen = feed?.attributes?.dropdown_open ?? true;
+    const dropdownOpen = this._dropdownOpen === true;
 
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
 
@@ -147,7 +154,7 @@ class HaNotificationCenterCard extends HTMLElement {
         }
 
         /* ══ Panel ══ */
-        .panel { display: none; margin-top: 16px; }
+        .panel { margin-top: 16px; }
         
 
         /* ══ Notification List ══ */
@@ -238,7 +245,7 @@ class HaNotificationCenterCard extends HTMLElement {
           color: var(--secondary-text-color, #727272);
           margin-right: 4px;
         }
-        .snooze-btn {
+        .snooze-btn, .ack-btn {
           padding: 5px 14px;
           border-radius: 18px;
           border: 1px solid rgba(0,0,0,0.1);
@@ -248,9 +255,21 @@ class HaNotificationCenterCard extends HTMLElement {
           cursor: pointer;
           transition: all 0.15s;
         }
-        .snooze-btn:hover {
+        .snooze-btn:hover, .ack-btn:hover {
           background: var(--secondary-background-color, #f0f0f0);
           border-color: var(--primary-color, #03a9f4);
+        }
+        .ack-btn {
+          font-weight: 700;
+          border-color: rgba(76, 175, 80, 0.25);
+        }
+        .ack-btn:hover {
+          border-color: #4caf50;
+          color: #2e7d32;
+        }
+        .ack-btn[disabled] {
+          opacity: 0.55;
+          cursor: default;
         }
 
         /* ── Empty ── */
@@ -279,7 +298,7 @@ class HaNotificationCenterCard extends HTMLElement {
           </div>
         </div>
 
-        <div class="panel" id="panel">
+        <div class="panel" id="panel" style="display:${this._config.show_panel !== false && dropdownOpen ? "block" : "none"}">
           ${count === 0
             ? '<div class="empty">沒有通知</div>'
             : `<div class="notif-list">${items.map(n => {
@@ -295,6 +314,7 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="divider"></div>
                     <div class="timer"><ha-icon icon="mdi:timer-outline"></ha-icon></div>
                     <div class="snooze-bar">
+                      <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? "Acknowledged" : "Acknowledge"}</button>
                       <span class="snooze-label">SNOOZE:</span>
                       <button class="snooze-btn" data-hours="1">1h</button>
                       <button class="snooze-btn" data-hours="4">4h</button>
@@ -311,10 +331,42 @@ class HaNotificationCenterCard extends HTMLElement {
     // ── Events ──
     const bell = this.shadowRoot.getElementById("bell");
     if (bell) {
-      bell.onclick = () => {
-        this._hass.callService("ha_notification_center", "toggle_dropdown", {});
+      bell.onclick = (e) => {
+        e.stopPropagation();
+        this._dropdownOpen = !this._dropdownOpen;
+        this._render();
       };
     }
+
+    if (this._clickOutsideHandler) {
+      document.removeEventListener("click", this._clickOutsideHandler, true);
+    }
+    this._clickOutsideHandler = (e) => {
+      const bellEl = this.shadowRoot?.getElementById("bell");
+      const panelEl = this.shadowRoot?.getElementById("panel");
+      const path = e.composedPath ? e.composedPath() : [];
+      if (
+        this._dropdownOpen &&
+        bellEl &&
+        panelEl &&
+        !path.includes(bellEl) &&
+        !path.includes(panelEl)
+      ) {
+        this._dropdownOpen = false;
+        this._render();
+      }
+    };
+    setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 0);
+
+    this.shadowRoot.querySelectorAll(".ack-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const sourceId = btn.dataset.source;
+        if (sourceId && !btn.disabled) {
+          this._hass.callService("ha_notification_center", "acknowledge", { source_id: sourceId });
+        }
+      };
+    });
 
     this.shadowRoot.querySelectorAll(".snooze-btn").forEach((btn) => {
       btn.onclick = (e) => {

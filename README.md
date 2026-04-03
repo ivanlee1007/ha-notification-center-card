@@ -5,6 +5,12 @@
 
 UNiNUS Notification Center 的 Lovelace 卡片，已從 integration repo 拆分為獨立的 **HACS Dashboard** repo。
 
+目前卡片已支援：
+- 卡片內直接 Acknowledge
+- Snooze
+- bell/chip icon 旁顯示文字
+- dropdown open/close 改為每個瀏覽器自己的前端 local state（不再互相影響）
+
 > 這個 repo 只提供前端卡片。後端通知資料、service、storage、sensor/binary_sensor 來自：
 > `https://github.com/ivanlee1007/ha-notification-center`
 
@@ -83,6 +89,8 @@ critical_entity: binary_sensor.notification_any_critical
 | `entity` | `sensor.notification_feed` | 通知 feed sensor |
 | `critical_entity` | `binary_sensor.notification_any_critical` | critical 狀態 binary sensor |
 
+> dropdown 開合狀態現在由每張卡片在前端各自維護，所以多個瀏覽器同時開同一個 dashboard 時，不會再互相影響面板開闔。
+
 ---
 
 ## 相依條件
@@ -120,7 +128,10 @@ customElements.get("ha-notification-center-card")
 
 ### 如果你使用 `notification-chip-card`
 
-`notification-chip-card.js` 也支援在 bell icon 旁顯示文字：
+`notification-chip-card.js` 也支援：
+- 在 bell icon 旁顯示文字
+- 直接 acknowledge
+- 前端 local dropdown 狀態
 
 ```yaml
 type: custom:notification-chip-card

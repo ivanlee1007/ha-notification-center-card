@@ -27,17 +27,18 @@ class NotificationChipCard extends HTMLElement {
   }
 
   _handleChipClick() {
-    this._hass.callService("ha_notification_center", "toggle_dropdown");
+    this._dropdownOpen = !this._dropdownOpen;
+    this._render();
   }
 
   _handleClickOutside(e) {
     const dropdown = this.shadowRoot.getElementById("dropdown");
     const chip = this.shadowRoot.getElementById("chip");
-    if (dropdown && chip && !dropdown.contains(e.target) && !chip.contains(e.target)) {
-      const entity = this._hass.states[this._config?.entity || "sensor.notification_feed"];
-      if (entity?.attributes.dropdown_open) {
-        this._hass.callService("ha_notification_center", "toggle_dropdown");
-      }
+    if (!dropdown || !chip || !this._dropdownOpen) return;
+    const path = e.composedPath ? e.composedPath() : [];
+    if (!path.includes(dropdown) && !path.includes(chip)) {
+      this._dropdownOpen = false;
+      this._render();
     }
   }
 
@@ -80,7 +81,7 @@ class NotificationChipCard extends HTMLElement {
     const label = String(this._config.label || "").trim();
     const hasLabel = label.length > 0;
     const notifications = entity.attributes.notifications || [];
-    const dropdownOpen = entity.attributes.dropdown_open === true;
+    const dropdownOpen = this._dropdownOpen === true;
     const count = parseInt(entity.state) || 0;
 
     const prio = {
