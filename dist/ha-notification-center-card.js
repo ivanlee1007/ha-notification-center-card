@@ -16,6 +16,7 @@ class HaNotificationCenterCard extends HTMLElement {
       max_items: 50,
       entity: "sensor.notification_feed",
       critical_entity: "binary_sensor.notification_any_critical",
+      button_label: "",
       ...config,
     };
   }
@@ -37,6 +38,8 @@ class HaNotificationCenterCard extends HTMLElement {
     const anyCritical = this._hass.states[this._config.critical_entity];
     const count = feed ? parseInt(feed.state) || 0 : 0;
     const isCritical = anyCritical?.state === "on";
+    const buttonLabel = String(this._config.button_label || "").trim();
+    const hasButtonLabel = buttonLabel.length > 0;
     const notifications = feed?.attributes?.notifications || [];
     const dropdownOpen = feed?.attributes?.dropdown_open ?? true;
 
@@ -103,18 +106,28 @@ class HaNotificationCenterCard extends HTMLElement {
         /* ══ Bell Button ══ */
         .bell-btn {
           position: relative;
-          width: 52px; height: 52px;
+          min-width: 52px; height: 52px;
+          padding: 0 ${hasButtonLabel ? "16px" : "0"};
           border-radius: 14px;
           background: #db4437;
-          display: flex; align-items: center; justify-content: center;
+          display: inline-flex; align-items: center; justify-content: center;
+          gap: ${hasButtonLabel ? "8px" : "0"};
           cursor: pointer;
           box-shadow: 0 4px 14px rgba(219,68,55,0.35);
           transition: transform 0.15s;
           border: none; outline: none;
           flex-shrink: 0;
+          box-sizing: border-box;
         }
         .bell-btn:hover { transform: scale(1.06); }
-        .bell-btn ha-icon { --mdc-icon-size: 26px; color: #fff; }
+        .bell-btn ha-icon { --mdc-icon-size: 26px; color: #fff; flex-shrink: 0; }
+        .bell-label {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+          white-space: nowrap;
+          line-height: 1;
+        }
         .bell-badge {
           position: absolute;
           top: -7px; right: -7px;
@@ -261,6 +274,7 @@ class HaNotificationCenterCard extends HTMLElement {
           </div>
           <div class="bell-btn ${isCritical ? "critical" : ""}" id="bell">
             <ha-icon icon="${isCritical ? "mdi:alert-circle" : "mdi:bell"}"></ha-icon>
+            ${hasButtonLabel ? `<span class="bell-label">${this._esc(buttonLabel)}</span>` : ""}
             ${count > 0 ? `<div class="bell-badge">${count}</div>` : ""}
           </div>
         </div>

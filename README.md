@@ -59,6 +59,7 @@ type: custom:ha-notification-center-card
 show_chip: true
 show_panel: true
 max_items: 20
+button_label: 告警訊息
 entity: sensor.ha_notification_center_feed
 critical_entity: binary_sensor.ha_notification_center_any_critical
 ```
@@ -78,6 +79,7 @@ critical_entity: binary_sensor.notification_any_critical
 | `show_chip` | `true` | 顯示通知晶片 |
 | `show_panel` | `true` | 顯示浮動通知面板 |
 | `max_items` | `50` | 最多顯示幾筆通知 |
+| `button_label` | `""` | 在右上角 bell icon 旁顯示文字說明；留白則維持純 icon |
 | `entity` | `sensor.notification_feed` | 通知 feed sensor |
 | `critical_entity` | `binary_sensor.notification_any_critical` | critical 狀態 binary sensor |
 
@@ -115,6 +117,16 @@ customElements.get("ha-notification-center-card")
 ```
 
 有定義才算載入成功。
+
+### 如果你使用 `notification-chip-card`
+
+`notification-chip-card.js` 也支援在 bell icon 旁顯示文字：
+
+```yaml
+type: custom:notification-chip-card
+entity: sensor.notification_feed
+label: 告警訊息
+```
 
 ### 卡片載入了但沒資料
 

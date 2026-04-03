@@ -1,6 +1,9 @@
 class NotificationChipCard extends HTMLElement {
   setConfig(config) {
-    this._config = config;
+    this._config = {
+      label: "",
+      ...config,
+    };
     this.attachShadow({ mode: "open" });
     this._expandedSnooze = null;
     this._clickOutsideHandler = null;
@@ -74,6 +77,8 @@ class NotificationChipCard extends HTMLElement {
     const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
     if (!entity) return "";
 
+    const label = String(this._config.label || "").trim();
+    const hasLabel = label.length > 0;
     const notifications = entity.attributes.notifications || [];
     const dropdownOpen = entity.attributes.dropdown_open === true;
     const count = parseInt(entity.state) || 0;
@@ -157,13 +162,23 @@ class NotificationChipCard extends HTMLElement {
       <style>
         :host { position: relative; display: inline-block; }
         .chip {
-          width: 40px; height: 40px; border-radius: 50%;
-          background: ${chipBg}; display: flex; align-items: center; justify-content: center;
+          min-width: 40px; height: 40px; border-radius: 20px;
+          padding: 0 ${hasLabel ? "14px" : "0"};
+          background: ${chipBg}; display: inline-flex; align-items: center; justify-content: center;
+          gap: ${hasLabel ? "8px" : "0"};
           cursor: pointer; transition: all 0.2s; position: relative;
+          box-sizing: border-box;
         }
         .chip:hover { filter: brightness(0.92); transform: scale(1.05); }
         .chip:active { transform: scale(0.95); }
-        .chip ha-icon { --mdc-icon-size: 22px; color: ${chipColor}; transition: color 0.2s; }
+        .chip ha-icon { --mdc-icon-size: 22px; color: ${chipColor}; transition: color 0.2s; flex-shrink: 0; }
+        .chip-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${chipColor};
+          white-space: nowrap;
+          line-height: 1;
+        }
         .badge {
           position: absolute; top: -3px; right: -3px;
           min-width: 18px; height: 18px; border-radius: 9px;
@@ -276,6 +291,7 @@ class NotificationChipCard extends HTMLElement {
 
       <div class="chip" id="chip">
         <ha-icon icon="${count > 0 ? (dropdownOpen ? "mdi:bell-ring" : "mdi:bell-badge") : "mdi:bell-outline"}"></ha-icon>
+        ${hasLabel ? `<span class="chip-label">${label}</span>` : ""}
         <span class="badge">${count}</span>
       </div>
 
