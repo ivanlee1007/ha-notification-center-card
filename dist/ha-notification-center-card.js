@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.6
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.7
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -111,12 +111,32 @@ class HaNotificationCenterCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    const renderKey = this._buildRenderKey();
+    if (renderKey !== this._lastRenderKey) {
+      this._lastRenderKey = renderKey;
+      this._render();
+    }
   }
 
   getCardSize() {
     const feed = this._hass?.states?.[this._config.entity];
     return feed?.state > 0 ? 5 : 2;
+  }
+
+  _buildRenderKey() {
+    if (!this._hass || !this._config) return "init";
+    const feed = this._hass.states?.[this._config.entity];
+    const anyCritical = this._hass.states?.[this._config.critical_entity];
+    return JSON.stringify({
+      feedState: feed?.state ?? null,
+      criticalState: anyCritical?.state ?? null,
+      notifications: feed?.attributes?.notifications || [],
+      maxItems: this._config.max_items ?? 50,
+      showPanel: this._config.show_panel !== false,
+      showChip: this._config.show_chip !== false,
+      buttonLabel: this._config.button_label || "",
+      open: this._dropdownOpen === true,
+    });
   }
 
   _render() {
@@ -145,6 +165,9 @@ class HaNotificationCenterCard extends HTMLElement {
       warning: "mdi:alert",
       info: "mdi:information",
     };
+
+    const listEl = this.shadowRoot?.querySelector?.(".notif-list");
+    const prevScrollTop = listEl ? listEl.scrollTop : 0;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -287,14 +310,15 @@ class HaNotificationCenterCard extends HTMLElement {
           min-width: 0;
         }
         .name {
-          font-size: 14px; font-weight: 600;
+          font-size: 15px; font-weight: 700;
           color: var(--primary-text-color, #212121);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .desc {
           font-size: 12px;
           color: var(--secondary-text-color, #727272);
-          margin-top: 2px;
+          margin-top: 4px;
+          line-height: 1.45;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
@@ -316,8 +340,12 @@ class HaNotificationCenterCard extends HTMLElement {
           display: grid;
           gap: 8px;
           padding-top: 10px;
-          margin-top: 6px;
-          border-top: 1px solid rgba(0,0,0,0.06);
+          margin-top: 8px;
+          border-top: 1px solid rgba(0,0,0,0.05);
+          opacity: 0.8;
+        }
+        .notif-item:hover .snooze-bar {
+          opacity: 1;
         }
         .ack-row {
           display: flex;
@@ -345,30 +373,35 @@ class HaNotificationCenterCard extends HTMLElement {
           min-width: 0;
         }
         .snooze-btn, .ack-btn {
-          padding: 5px 14px;
-          border-radius: 18px;
-          border: 1px solid rgba(0,0,0,0.1);
-          background: var(--card-background-color, #fff);
-          color: var(--primary-text-color, #212121);
-          font-size: 12px; font-weight: 500;
+          padding: 4px 12px;
+          border-radius: 16px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: rgba(255,255,255,0.72);
+          color: var(--secondary-text-color, #616161);
+          font-size: 11px; font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
           white-space: nowrap;
+          box-shadow: none;
         }
         .snooze-btn:hover, .ack-btn:hover {
-          background: var(--secondary-background-color, #f0f0f0);
-          border-color: var(--primary-color, #03a9f4);
+          background: rgba(255,255,255,0.92);
+          border-color: rgba(0,0,0,0.16);
+          color: var(--primary-text-color, #212121);
         }
         .ack-btn {
-          font-weight: 700;
-          border-color: rgba(76, 175, 80, 0.25);
-        }
-        .ack-btn:hover {
-          border-color: #4caf50;
+          font-weight: 600;
+          border-color: rgba(76, 175, 80, 0.18);
+          background: rgba(76, 175, 80, 0.06);
           color: #2e7d32;
         }
+        .ack-btn:hover {
+          border-color: rgba(76, 175, 80, 0.32);
+          background: rgba(76, 175, 80, 0.1);
+          color: #1b5e20;
+        }
         .ack-btn[disabled] {
-          opacity: 0.55;
+          opacity: 0.45;
           cursor: default;
         }
 
@@ -496,6 +529,13 @@ class HaNotificationCenterCard extends HTMLElement {
         };
       }
     });
+
+    const nextListEl = this.shadowRoot.querySelector(".notif-list");
+    if (nextListEl && prevScrollTop > 0) {
+      nextListEl.scrollTop = prevScrollTop;
+    }
+
+    this._lastRenderKey = this._buildRenderKey();
   }
 
   _esc(str) {
