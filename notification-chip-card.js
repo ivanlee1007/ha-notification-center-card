@@ -9,6 +9,18 @@ class NotificationChipCard extends HTMLElement {
     this._clickOutsideHandler = null;
   }
 
+  static getConfigElement() {
+    return document.createElement("notification-chip-card-editor");
+  }
+
+  static getStubConfig() {
+    return {
+      type: "custom:notification-chip-card",
+      entity: "sensor.notification_feed",
+      label: "",
+    };
+  }
+
   set hass(hass) {
     this._hass = hass;
     this._render();
@@ -356,7 +368,88 @@ class NotificationChipCard extends HTMLElement {
   getCardSize() { return 1; }
 }
 
+class NotificationChipCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = {
+      type: "custom:notification-chip-card",
+      entity: "sensor.notification_feed",
+      label: "",
+      ...config,
+    };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      {
+        name: "entity",
+        selector: { entity: { domain: "sensor" } },
+      },
+      {
+        name: "label",
+        selector: { text: {} },
+      },
+    ];
+  }
+
+  _labels() {
+    return {
+      entity: "通知 feed 實體",
+      label: "按鈕文字（選填）",
+    };
+  }
+
+  _handleValueChanged(ev) {
+    const value = ev.detail?.value;
+    if (!value) return;
+    this._config = {
+      ...this._config,
+      ...value,
+    };
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _render() {
+    if (!this._hass || !this._config) return;
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; }
+        .wrap { display: grid; gap: 12px; }
+        .hint {
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+      </style>
+      <div class="wrap">
+        <ha-form id="form"></ha-form>
+        <div class="hint">這是符合 Home Assistant 規範的簡易 editor，可直接設定實體與按鈕文字。</div>
+      </div>
+    `;
+
+    const form = this.shadowRoot.getElementById("form");
+    form.hass = this._hass;
+    form.schema = this._schema();
+    form.data = this._config;
+    form.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    form.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+  }
+}
+
 customElements.define("notification-chip-card", NotificationChipCard);
+if (!customElements.get("notification-chip-card-editor")) {
+  customElements.define("notification-chip-card-editor", NotificationChipCardEditor);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({

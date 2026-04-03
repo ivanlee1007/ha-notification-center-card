@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.2.0
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.0
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -25,6 +25,22 @@ class HaNotificationCenterCard extends HTMLElement {
       critical_entity: "binary_sensor.notification_any_critical",
       button_label: "",
       ...config,
+    };
+  }
+
+  static getConfigElement() {
+    return document.createElement("ha-notification-center-card-editor");
+  }
+
+  static getStubConfig() {
+    return {
+      type: "custom:ha-notification-center-card",
+      entity: "sensor.notification_feed",
+      critical_entity: "binary_sensor.notification_any_critical",
+      show_chip: true,
+      show_panel: true,
+      max_items: 20,
+      button_label: "",
     };
   }
 
@@ -400,7 +416,116 @@ class HaNotificationCenterCard extends HTMLElement {
   }
 }
 
+class HaNotificationCenterCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = {
+      type: "custom:ha-notification-center-card",
+      entity: "sensor.notification_feed",
+      critical_entity: "binary_sensor.notification_any_critical",
+      show_chip: true,
+      show_panel: true,
+      max_items: 20,
+      button_label: "",
+      ...config,
+    };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      {
+        name: "entity",
+        selector: { entity: { domain: "sensor" } },
+      },
+      {
+        name: "critical_entity",
+        selector: { entity: { domain: "binary_sensor" } },
+      },
+      {
+        name: "button_label",
+        selector: { text: {} },
+      },
+      {
+        name: "show_chip",
+        selector: { boolean: {} },
+      },
+      {
+        name: "show_panel",
+        selector: { boolean: {} },
+      },
+      {
+        name: "max_items",
+        selector: { number: { min: 1, max: 100, step: 1, mode: "box" } },
+      },
+    ];
+  }
+
+  _labels() {
+    return {
+      entity: "通知 feed 實體",
+      critical_entity: "Critical 狀態實體",
+      button_label: "按鈕文字（選填）",
+      show_chip: "顯示 bell/chip 按鈕",
+      show_panel: "允許展開通知面板",
+      max_items: "最多顯示筆數",
+    };
+  }
+
+  _handleValueChanged(ev) {
+    const value = ev.detail?.value;
+    if (!value) return;
+    this._config = {
+      ...this._config,
+      ...value,
+    };
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _render() {
+    if (!this._hass || !this._config) return;
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; }
+        .wrap {
+          display: grid;
+          gap: 12px;
+        }
+        .hint {
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+      </style>
+      <div class="wrap">
+        <ha-form id="form"></ha-form>
+        <div class="hint">使用 HA 原生 editor。若只是要顯示 bell/chip 旁的文字，可填「按鈕文字」。</div>
+      </div>
+    `;
+
+    const form = this.shadowRoot.getElementById("form");
+    form.hass = this._hass;
+    form.schema = this._schema();
+    form.data = this._config;
+    form.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+    form.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+  }
+}
+
 customElements.define("ha-notification-center-card", HaNotificationCenterCard);
+if (!customElements.get("ha-notification-center-card-editor")) {
+  customElements.define("ha-notification-center-card-editor", HaNotificationCenterCardEditor);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({
