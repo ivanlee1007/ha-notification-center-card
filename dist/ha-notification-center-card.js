@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.3
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.4
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -624,13 +624,46 @@ class NotificationChipCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    const renderKey = this._buildRenderKey();
+    if (renderKey !== this._lastRenderKey) {
+      this._lastRenderKey = renderKey;
+      this._render();
+    }
   }
 
   disconnectedCallback() {
     if (this._clickOutsideHandler) {
       document.removeEventListener("click", this._clickOutsideHandler, true);
       this._clickOutsideHandler = null;
+    }
+  }
+
+  _currentNotifications() {
+    const entity = this._hass?.states?.[this._config?.entity || "sensor.notification_feed"];
+    return entity?.attributes?.notifications || [];
+  }
+
+  _buildRenderKey() {
+    if (!this._hass || !this._config) return "init";
+    const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
+    return JSON.stringify({
+      entityState: entity?.state ?? null,
+      notifications: entity?.attributes?.notifications || [],
+      label: this._config.label || "",
+      open: this._dropdownOpen === true,
+      expandedSnooze: this._expandedSnooze || null,
+    });
+  }
+
+  _positionDropdown() {
+    const dropdown = this.shadowRoot?.getElementById("dropdown");
+    if (!dropdown || getComputedStyle(dropdown).display === "none") return;
+
+    dropdown.classList.remove("align-right");
+    const rect = dropdown.getBoundingClientRect();
+    const margin = 8;
+    if (rect.right > window.innerWidth - margin) {
+      dropdown.classList.add("align-right");
     }
   }
 
@@ -811,8 +844,8 @@ class NotificationChipCard extends HTMLElement {
 
         /* Dropdown */
         .dropdown {
-          position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
-          width: 340px; max-height: 420px; overflow-y: auto;
+          position: absolute; top: calc(100% + 10px); left: 0; right: auto;
+          width: min(360px, calc(100vw - 16px)); max-height: 420px; overflow-y: auto;
           background: var(--card-background-color, #fff);
           border-radius: 16px; border: none;
           box-shadow: 0 8px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
@@ -820,9 +853,13 @@ class NotificationChipCard extends HTMLElement {
           display: ${dropdownVisible ? "block" : "none"};
           animation: dropdown-in 0.2s ease;
         }
+        .dropdown.align-right {
+          left: auto;
+          right: 0;
+        }
         @keyframes dropdown-in {
-          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .dropdown::-webkit-scrollbar { width: 4px; }
         .dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
@@ -964,6 +1001,9 @@ class NotificationChipCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".snooze-panel button").forEach(el => {
       el.addEventListener("click", (e) => this._handleSnooze(el.dataset.source, parseInt(el.dataset.hours), e));
     });
+
+    this._positionDropdown();
+    this._lastRenderKey = this._buildRenderKey();
   }
 
   getCardSize() { return 1; }
