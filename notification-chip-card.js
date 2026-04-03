@@ -4,8 +4,11 @@ const NOTIFICATION_CHIP_I18N = {
     warning: "Warning",
     info: "Info",
     noNotifications: "No notifications",
+    acknowledge: "Acknowledge",
+    acknowledged: "Acknowledged",
     ackTitle: "Acknowledge",
     snoozeTitle: "Snooze",
+    moreActions: "More actions",
     tomorrow: "Tomorrow",
     dayAfter: "Day after",
     now: "now",
@@ -18,8 +21,11 @@ const NOTIFICATION_CHIP_I18N = {
     warning: "警告",
     info: "資訊",
     noNotifications: "目前沒有通知",
+    acknowledge: "確認",
+    acknowledged: "已確認",
     ackTitle: "確認",
     snoozeTitle: "稍後提醒",
+    moreActions: "更多操作",
     tomorrow: "明天",
     dayAfter: "後天",
     now: "剛剛",
@@ -64,7 +70,7 @@ class NotificationChipCard extends HTMLElement {
       ...config,
     };
     this.attachShadow({ mode: "open" });
-    this._expandedSnooze = null;
+    this._expandedActions = null;
     this._clickOutsideHandler = null;
   }
 
@@ -114,7 +120,7 @@ class NotificationChipCard extends HTMLElement {
       defaultOpen: this._config.default_open === true,
       autoOpenCritical: this._config.auto_open_critical === true,
       open: this._dropdownOpen === true,
-      expandedSnooze: this._expandedSnooze || null,
+      expandedActions: this._expandedActions || null,
     });
   }
 
@@ -153,13 +159,14 @@ class NotificationChipCard extends HTMLElement {
     }
   }
 
-  _toggleSnooze(sourceId) {
-    this._expandedSnooze = this._expandedSnooze === sourceId ? null : sourceId;
+  _toggleActions(sourceId) {
+    this._expandedActions = this._expandedActions === sourceId ? null : sourceId;
     this._render();
   }
 
   _handleChipClick() {
     this._dropdownOpen = !this._dropdownOpen;
+    if (!this._dropdownOpen) this._expandedActions = null;
     this._render();
   }
 
@@ -170,6 +177,7 @@ class NotificationChipCard extends HTMLElement {
     const path = e.composedPath ? e.composedPath() : [];
     if (!path.includes(dropdown) && !path.includes(chip)) {
       this._dropdownOpen = false;
+      this._expandedActions = null;
       this._render();
     }
   }
@@ -177,6 +185,8 @@ class NotificationChipCard extends HTMLElement {
   _handleAcknowledge(sourceId, e) {
     e.stopPropagation();
     this._hass.callService("ha_notification_center", "acknowledge", { source_id: sourceId });
+    this._expandedActions = null;
+    this._render();
   }
 
   _handleSnooze(sourceId, hours, e) {
@@ -185,7 +195,8 @@ class NotificationChipCard extends HTMLElement {
       source_id: sourceId,
       duration_hours: hours
     });
-    this._expandedSnooze = null;
+    this._expandedActions = null;
+    this._render();
   }
 
   _handleTap(eid) {
@@ -254,7 +265,7 @@ class NotificationChipCard extends HTMLElement {
     sorted.forEach(item => {
       const style = prio[item.priority] || prio.info;
       const eid = item.tap_action_entity || "";
-      const isSnoozeOpen = this._expandedSnooze === item.source_id;
+      const isActionsOpen = this._expandedActions === item.source_id;
       const isAcked = item.acknowledged === true;
       const ago = item.timestamp ? this._timeAgo(item.timestamp) : "";
 
@@ -270,15 +281,13 @@ class NotificationChipCard extends HTMLElement {
             </div>
             <div class="notif-actions">
               ${ago ? `<span class="notif-time">${ago}</span>` : ""}
-              <button class="icon-btn ack-btn" data-source="${item.source_id}" title="${t("ackTitle")}">
-                <ha-icon icon="mdi:check-circle${isAcked ? "" : "-outline"}"></ha-icon>
-              </button>
-              <button class="icon-btn snooze-btn" data-source="${item.source_id}" title="${t("snoozeTitle")}">
-                <ha-icon icon="mdi:timer-outline"></ha-icon>
+              <button class="icon-btn more-btn" data-source="${item.source_id}" title="${t("moreActions")}">
+                <ha-icon icon="mdi:dots-horizontal"></ha-icon>
               </button>
             </div>
           </div>
-          <div class="snooze-panel" style="display:${isSnoozeOpen ? "flex" : "none"}">
+          <div class="more-panel" style="display:${isActionsOpen ? "flex" : "none"}">
+            <button class="ack-action-btn" data-source="${item.source_id}" ${isAcked ? "disabled" : ""}>${isAcked ? t("acknowledged") : t("acknowledge")}</button>
             <button data-hours="1" data-source="${item.source_id}">1h</button>
             <button data-hours="4" data-source="${item.source_id}">4h</button>
             <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
@@ -400,23 +409,37 @@ class NotificationChipCard extends HTMLElement {
         }
         .icon-btn:hover { background: rgba(128,128,128,0.12); color: var(--primary-text-color, #212121); }
         .icon-btn ha-icon { --mdc-icon-size: 18px; }
-        .ack-btn:hover { color: #4caf50; }
+        .more-btn:hover { color: var(--primary-text-color, #212121); }
 
-        /* Snooze panel */
-        .snooze-panel {
+        /* More actions panel */
+        .more-panel {
           display: flex; gap: 4px; padding: 6px 10px 8px 46px;
           background: rgba(0,0,0,0.02);
           border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
           flex-wrap: wrap;
         }
-        .snooze-panel button {
+        .more-panel button {
           border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
           border-radius: 8px; background: var(--card-background-color, #fff);
           color: var(--primary-text-color, #212121);
           font-size: 11px; font-weight: 600; padding: 3px 10px;
           cursor: pointer; transition: all 0.15s;
         }
-        .snooze-panel button:hover { background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color, #03a9f4); }
+        .more-panel button:hover { background: var(--primary-color, #03a9f4); color: #fff; border-color: var(--primary-color, #03a9f4); }
+        .ack-action-btn {
+          border-color: rgba(76,175,80,0.18) !important;
+          color: #2e7d32 !important;
+          background: rgba(76,175,80,0.05) !important;
+        }
+        .ack-action-btn:hover {
+          border-color: rgba(76,175,80,0.28) !important;
+          background: rgba(76,175,80,0.12) !important;
+          color: #1b5e20 !important;
+        }
+        .ack-action-btn[disabled] {
+          opacity: 0.55;
+          cursor: default;
+        }
 
         /* Empty state */
         .empty-state {
@@ -463,21 +486,23 @@ class NotificationChipCard extends HTMLElement {
       el.addEventListener("click", () => this._handleTap(el.dataset.entity));
     });
 
-    // Acknowledge buttons
-    this.shadowRoot.querySelectorAll(".ack-btn").forEach(el => {
-      el.addEventListener("click", (e) => this._handleAcknowledge(el.dataset.source, e));
-    });
-
-    // Snooze toggle buttons
-    this.shadowRoot.querySelectorAll(".snooze-btn").forEach(el => {
+    // More-actions toggle buttons
+    this.shadowRoot.querySelectorAll(".more-btn").forEach(el => {
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        this._toggleSnooze(el.dataset.source);
+        this._toggleActions(el.dataset.source);
       });
     });
 
-    // Snooze option buttons
-    this.shadowRoot.querySelectorAll(".snooze-panel button").forEach(el => {
+    // Acknowledge buttons
+    this.shadowRoot.querySelectorAll(".ack-action-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        this._handleAcknowledge(el.dataset.source, e);
+      });
+    });
+
+    // Action option buttons
+    this.shadowRoot.querySelectorAll(".more-panel button[data-hours]").forEach(el => {
       el.addEventListener("click", (e) => this._handleSnooze(el.dataset.source, parseInt(el.dataset.hours), e));
     });
 

@@ -6,6 +6,7 @@
 UNiNUS Notification Center 的 Lovelace 卡片，已從 integration repo 拆分為獨立的 **HACS Dashboard** repo。
 
 目前卡片已支援：
+- 通知操作已收進「更多操作」
 - 卡片內直接 Acknowledge
 - Snooze
 - bell/chip icon 旁顯示文字
@@ -165,6 +166,7 @@ customElements.get("ha-notification-center-card")
 - 前端 local dropdown 狀態
 - 預設展開
 - 有緊急事件時自動展開
+- 操作按鈕收進「更多操作」，讓事件內容更突出
 
 ```yaml
 type: custom:notification-chip-card
