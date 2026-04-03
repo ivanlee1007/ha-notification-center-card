@@ -501,15 +501,19 @@ class NotificationChipCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("notification-chip-card", NotificationChipCard);
+if (!customElements.get("notification-chip-card")) {
+  customElements.define("notification-chip-card", NotificationChipCard);
+}
 if (!customElements.get("notification-chip-card-editor")) {
   customElements.define("notification-chip-card-editor", NotificationChipCardEditor);
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "notification-chip-card",
-  name: "Notification Chip Card",
-  description: "Notification bell chip with dropdown panel, snooze, and acknowledge",
-  preview: true
-});
+if (!window.customCards.some((card) => card.type === "notification-chip-card")) {
+  window.customCards.push({
+    type: "notification-chip-card",
+    name: "Notification Chip Card",
+    description: "Notification bell chip with dropdown panel, snooze, and acknowledge",
+    preview: true
+  });
+}

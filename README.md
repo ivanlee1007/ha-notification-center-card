@@ -45,6 +45,13 @@ Lovelace resource 一般應為：
 /hacsfiles/ha-notification-center-card/ha-notification-center-card.js
 ```
 
+> 這支主檔現在會同時註冊：
+>
+> - `custom:ha-notification-center-card`
+> - `custom:notification-chip-card`
+>
+> 也就是說，**不需要再額外手動新增第二條 `notification-chip-card.js` resource**。
+
 如果你的 HA 沒自動加，手動到：
 
 - **設定 → 儀表板 → 資源**
@@ -142,7 +149,13 @@ customElements.get("ha-notification-center-card")
 
 ### 如果你使用 `notification-chip-card`
 
-`notification-chip-card.js` 也支援：
+`notification-chip-card` 現在已經包含在主 resource：
+
+```text
+/hacsfiles/ha-notification-center-card/ha-notification-center-card.js
+```
+
+它也支援：
 - 在 bell icon 旁顯示文字
 - 直接 acknowledge
 - 前端 local dropdown 狀態
@@ -152,6 +165,8 @@ type: custom:notification-chip-card
 entity: sensor.notification_feed
 label: 告警訊息
 ```
+
+> 若你過去曾手動加過 `/hacsfiles/ha-notification-center-card/notification-chip-card.js`，現在可以移除那條額外 resource，避免重複載入。
 
 ### 卡片載入了但沒資料
 
