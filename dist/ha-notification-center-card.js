@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.5
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.6
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -8,6 +8,71 @@
  * - Inline acknowledge + snooze actions
  * - Frontend-local dropdown state (no cross-browser coupling)
  */
+const NOTIFICATION_CARD_I18N = {
+  en: {
+    notifications: "NOTIFICATIONS",
+    critical: "Critical",
+    warning: "Warning",
+    info: "Info",
+    noNotifications: "No notifications",
+    acknowledge: "Acknowledge",
+    acknowledged: "Acknowledged",
+    snooze: "SNOOZE:",
+    tomorrow: "Tomorrow",
+    dayAfter: "Day after",
+    ackTitle: "Acknowledge",
+    snoozeTitle: "Snooze",
+    now: "now",
+    minutesAgo: (n) => `${n}m`,
+    hoursAgo: (n) => `${n}h`,
+    daysAgo: (n) => `${n}d`,
+  },
+  "zh-Hant": {
+    notifications: "告警訊息",
+    critical: "緊急",
+    warning: "警告",
+    info: "資訊",
+    noNotifications: "目前沒有通知",
+    acknowledge: "確認",
+    acknowledged: "已確認",
+    snooze: "稍後提醒：",
+    tomorrow: "明天",
+    dayAfter: "後天",
+    ackTitle: "確認",
+    snoozeTitle: "稍後提醒",
+    now: "剛剛",
+    minutesAgo: (n) => `${n} 分鐘前`,
+    hoursAgo: (n) => `${n} 小時前`,
+    daysAgo: (n) => `${n} 天前`,
+  },
+};
+
+function getNotificationCardLang(hass) {
+  const raw = String(hass?.locale?.language || hass?.language || navigator.language || "en").toLowerCase();
+  if (raw.startsWith("zh-tw") || raw.startsWith("zh-hant") || raw.startsWith("zh-hk") || raw.startsWith("zh-mo")) {
+    return "zh-Hant";
+  }
+  return "en";
+}
+
+function notificationCardT(hass, key) {
+  const lang = getNotificationCardLang(hass);
+  return NOTIFICATION_CARD_I18N[lang]?.[key] ?? NOTIFICATION_CARD_I18N.en[key] ?? key;
+}
+
+function notificationCardTimeAgo(hass, ts) {
+  const t = (key) => notificationCardT(hass, key);
+  const diff = Date.now() - new Date(ts).getTime();
+  if (diff < 0) return t("now");
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return t("now");
+  if (m < 60) return t("minutesAgo")(m);
+  const h = Math.floor(m / 60);
+  if (h < 24) return t("hoursAgo")(h);
+  const d = Math.floor(h / 24);
+  return t("daysAgo")(d);
+}
+
 class HaNotificationCenterCard extends HTMLElement {
   disconnectedCallback() {
     if (this._clickOutsideHandler) {
@@ -65,6 +130,7 @@ class HaNotificationCenterCard extends HTMLElement {
     const hasButtonLabel = buttonLabel.length > 0;
     const notifications = feed?.attributes?.notifications || [];
     const dropdownOpen = this._dropdownOpen === true;
+    const t = (key) => notificationCardT(this._hass, key);
 
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
 
@@ -318,11 +384,11 @@ class HaNotificationCenterCard extends HTMLElement {
       <div class="card">
         <div class="header">
           <div class="header-left">
-            <div class="title">NOTIFICATIONS</div>
+            <div class="title">${t("notifications")}</div>
             <div class="legend">
-              <div class="legend-item"><div class="legend-dot critical"></div>Critical</div>
-              <div class="legend-item"><div class="legend-dot warning"></div>Warning</div>
-              <div class="legend-item"><div class="legend-dot info"></div>Info</div>
+              <div class="legend-item"><div class="legend-dot critical"></div>${t("critical")}</div>
+              <div class="legend-item"><div class="legend-dot warning"></div>${t("warning")}</div>
+              <div class="legend-item"><div class="legend-dot info"></div>${t("info")}</div>
             </div>
           </div>
           <div class="bell-btn ${isCritical ? "critical" : ""}" id="bell">
@@ -334,7 +400,7 @@ class HaNotificationCenterCard extends HTMLElement {
 
         <div class="panel" id="panel" style="display:${this._config.show_panel !== false && dropdownOpen ? "block" : "none"}">
           ${count === 0
-            ? '<div class="empty">沒有通知</div>'
+            ? `<div class="empty">${t("noNotifications")}</div>`
             : `<div class="notif-list">${items.map(n => {
                 const pri = n.priority || "info";
                 const icon = n.icon || iconMap[pri] || "mdi:bell";
@@ -349,15 +415,15 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="timer"><ha-icon icon="mdi:timer-outline"></ha-icon></div>
                     <div class="snooze-bar">
                       <div class="ack-row">
-                        <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? "Acknowledged" : "Acknowledge"}</button>
+                        <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
                       </div>
                       <div class="snooze-row">
-                        <span class="snooze-label">SNOOZE:</span>
+                        <span class="snooze-label">${t("snooze")}</span>
                         <div class="snooze-actions">
                           <button class="snooze-btn" data-hours="1">1h</button>
                           <button class="snooze-btn" data-hours="4">4h</button>
-                          <button class="snooze-btn" data-hours="24">Tomorrow</button>
-                          <button class="snooze-btn" data-hours="48">Day after</button>
+                          <button class="snooze-btn" data-hours="24">${t("tomorrow")}</button>
+                          <button class="snooze-btn" data-hours="48">${t("dayAfter")}</button>
                         </div>
                       </div>
                     </div>
@@ -748,6 +814,7 @@ class NotificationChipCard extends HTMLElement {
     const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
     if (!entity) return "";
 
+    const t = (key) => notificationCardT(this._hass, key);
     const label = String(this._config.label || "").trim();
     const hasLabel = label.length > 0;
     const notifications = entity.attributes.notifications || [];
@@ -755,9 +822,9 @@ class NotificationChipCard extends HTMLElement {
     const count = parseInt(entity.state) || 0;
 
     const prio = {
-      critical: { color: "var(--error-color, #db4437)", label: "Critical", bg: "rgba(219,68,55,0.08)" },
-      warning: { color: "var(--warning-color, #ff9800)", label: "Warning", bg: "rgba(255,152,0,0.08)" },
-      info: { color: "var(--info-color, #2196f3)", label: "Info", bg: "rgba(33,150,243,0.08)" }
+      critical: { color: "var(--error-color, #db4437)", label: t("critical"), bg: "rgba(219,68,55,0.08)" },
+      warning: { color: "var(--warning-color, #ff9800)", label: t("warning"), bg: "rgba(255,152,0,0.08)" },
+      info: { color: "var(--info-color, #2196f3)", label: t("info"), bg: "rgba(33,150,243,0.08)" }
     };
     const order = { critical: 0, warning: 1, info: 2 };
     const sorted = [...notifications].sort((a, b) => (order[a.priority] ?? 9) - (order[b.priority] ?? 9));
@@ -807,10 +874,10 @@ class NotificationChipCard extends HTMLElement {
             </div>
             <div class="notif-actions">
               ${ago ? `<span class="notif-time">${ago}</span>` : ""}
-              <button class="icon-btn ack-btn" data-source="${item.source_id}" title="Acknowledge">
+              <button class="icon-btn ack-btn" data-source="${item.source_id}" title="${t("ackTitle")}">
                 <ha-icon icon="mdi:check-circle${isAcked ? "" : "-outline"}"></ha-icon>
               </button>
-              <button class="icon-btn snooze-btn" data-source="${item.source_id}" title="Snooze">
+              <button class="icon-btn snooze-btn" data-source="${item.source_id}" title="${t("snoozeTitle")}">
                 <ha-icon icon="mdi:timer-outline"></ha-icon>
               </button>
             </div>
@@ -818,15 +885,15 @@ class NotificationChipCard extends HTMLElement {
           <div class="snooze-panel" style="display:${isSnoozeOpen ? "flex" : "none"}">
             <button data-hours="1" data-source="${item.source_id}">1h</button>
             <button data-hours="4" data-source="${item.source_id}">4h</button>
-            <button data-hours="24" data-source="${item.source_id}">Tomorrow</button>
-            <button data-hours="48" data-source="${item.source_id}">Day after</button>
+            <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
+            <button data-hours="48" data-source="${item.source_id}">${t("dayAfter")}</button>
           </div>
         </div>`;
     });
 
     const dropdownVisible = dropdownOpen && count > 0;
     const emptyState = dropdownOpen && count === 0
-      ? `<div class="empty-state"><ha-icon icon="mdi:bell-check-outline"></ha-icon><span>No notifications</span></div>`
+      ? `<div class="empty-state"><ha-icon icon="mdi:bell-check-outline"></ha-icon><span>${t("noNotifications")}</span></div>`
       : "";
 
     return `
@@ -979,15 +1046,7 @@ class NotificationChipCard extends HTMLElement {
   }
 
   _timeAgo(ts) {
-    const diff = Date.now() - new Date(ts).getTime();
-    if (diff < 0) return "now";
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return "now";
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    const d = Math.floor(h / 24);
-    return `${d}d`;
+    return notificationCardTimeAgo(this._hass, ts);
   }
 
   _render() {
