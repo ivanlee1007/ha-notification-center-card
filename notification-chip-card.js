@@ -381,7 +381,7 @@ class NotificationChipCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    this._syncForms();
   }
 
   _sourceSchema() {
@@ -423,9 +423,10 @@ class NotificationChipCardEditor extends HTMLElement {
     }));
   }
 
-  _render() {
-    if (!this._hass || !this._config) return;
+  _ensureEditor() {
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    if (this._initialized) return;
+
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; }
@@ -468,19 +469,35 @@ class NotificationChipCardEditor extends HTMLElement {
       </div>
     `;
 
-    const sourceForm = this.shadowRoot.getElementById("source-form");
-    sourceForm.hass = this._hass;
-    sourceForm.schema = this._sourceSchema();
-    sourceForm.data = this._config;
-    sourceForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
-    sourceForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+    this._sourceForm = this.shadowRoot.getElementById("source-form");
+    this._displayForm = this.shadowRoot.getElementById("display-form");
 
-    const displayForm = this.shadowRoot.getElementById("display-form");
-    displayForm.hass = this._hass;
-    displayForm.schema = this._displaySchema();
-    displayForm.data = this._config;
-    displayForm.computeLabel = (schema) => this._labels()[schema.name] || schema.name;
-    displayForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+    this._sourceForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+    this._displayForm.addEventListener("value-changed", (ev) => this._handleValueChanged(ev));
+
+    this._initialized = true;
+  }
+
+  _syncForms() {
+    if (!this._initialized || !this._config) return;
+
+    const computeLabel = (schema) => this._labels()[schema.name] || schema.name;
+
+    this._sourceForm.hass = this._hass;
+    this._sourceForm.schema = this._sourceSchema();
+    this._sourceForm.data = this._config;
+    this._sourceForm.computeLabel = computeLabel;
+
+    this._displayForm.hass = this._hass;
+    this._displayForm.schema = this._displaySchema();
+    this._displayForm.data = this._config;
+    this._displayForm.computeLabel = computeLabel;
+  }
+
+  _render() {
+    if (!this._config) return;
+    this._ensureEditor();
+    this._syncForms();
   }
 }
 
