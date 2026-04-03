@@ -63,6 +63,14 @@ entity: sensor.ha_notification_center_feed
 critical_entity: binary_sensor.ha_notification_center_any_critical
 ```
 
+> 若你使用目前的 UNiNUS Notification Center integration 預設實體，通常應改成：
+
+```yaml
+type: custom:ha-notification-center-card
+entity: sensor.notification_feed
+critical_entity: binary_sensor.notification_any_critical
+```
+
 ### 可用參數
 
 | 參數 | 預設值 | 說明 |
@@ -70,8 +78,8 @@ critical_entity: binary_sensor.ha_notification_center_any_critical
 | `show_chip` | `true` | 顯示通知晶片 |
 | `show_panel` | `true` | 顯示浮動通知面板 |
 | `max_items` | `50` | 最多顯示幾筆通知 |
-| `entity` | `sensor.ha_notification_center_feed` | 通知 feed sensor |
-| `critical_entity` | `binary_sensor.ha_notification_center_any_critical` | critical 狀態 binary sensor |
+| `entity` | `sensor.notification_feed` | 通知 feed sensor |
+| `critical_entity` | `binary_sensor.notification_any_critical` | critical 狀態 binary sensor |
 
 ---
 
@@ -79,8 +87,8 @@ critical_entity: binary_sensor.ha_notification_center_any_critical
 
 這張卡片會讀取以下實體：
 
-- `sensor.ha_notification_center_feed`
-- `binary_sensor.ha_notification_center_any_critical`
+- `sensor.notification_feed`
+- `binary_sensor.notification_any_critical`
 
 這些都由 integration repo 提供。
 
@@ -112,8 +120,8 @@ customElements.get("ha-notification-center-card")
 
 代表前端正常，請檢查 integration 是否已安裝並產生：
 
-- `sensor.ha_notification_center_feed`
-- `binary_sensor.ha_notification_center_any_critical`
+- `sensor.notification_feed`
+- `binary_sensor.notification_any_critical`
 
 ---
 
