@@ -59,6 +59,8 @@ class NotificationChipCard extends HTMLElement {
   setConfig(config) {
     this._config = {
       label: "",
+      default_open: false,
+      auto_open_critical: false,
       ...config,
     };
     this.attachShadow({ mode: "open" });
@@ -75,11 +77,14 @@ class NotificationChipCard extends HTMLElement {
       type: "custom:notification-chip-card",
       entity: "sensor.notification_feed",
       label: "",
+      default_open: false,
+      auto_open_critical: false,
     };
   }
 
   set hass(hass) {
     this._hass = hass;
+    this._syncOpenState();
     const renderKey = this._buildRenderKey();
     if (renderKey !== this._lastRenderKey) {
       this._lastRenderKey = renderKey;
@@ -106,9 +111,34 @@ class NotificationChipCard extends HTMLElement {
       entityState: entity?.state ?? null,
       notifications: entity?.attributes?.notifications || [],
       label: this._config.label || "",
+      defaultOpen: this._config.default_open === true,
+      autoOpenCritical: this._config.auto_open_critical === true,
       open: this._dropdownOpen === true,
       expandedSnooze: this._expandedSnooze || null,
     });
+  }
+
+  _syncOpenState() {
+    if (!this._hass || !this._config) return;
+    const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
+    const notifications = entity?.attributes?.notifications || [];
+    const hasItems = (parseInt(entity?.state, 10) || 0) > 0;
+    const hasCritical = notifications.some((item) => item.priority === "critical");
+
+    if (this._openStateInitialized !== true) {
+      this._openStateInitialized = true;
+      if (this._config.auto_open_critical === true && hasCritical && hasItems) {
+        this._dropdownOpen = true;
+      } else if (this._config.default_open === true) {
+        this._dropdownOpen = true;
+      } else if (typeof this._dropdownOpen !== "boolean") {
+        this._dropdownOpen = false;
+      }
+    } else if (this._config.auto_open_critical === true && hasCritical && this._lastHasCritical !== true && hasItems) {
+      this._dropdownOpen = true;
+    }
+
+    this._lastHasCritical = hasCritical;
   }
 
   _positionDropdown() {
@@ -464,6 +494,8 @@ class NotificationChipCardEditor extends HTMLElement {
       type: "custom:notification-chip-card",
       entity: "sensor.notification_feed",
       label: "",
+      default_open: false,
+      auto_open_critical: false,
       ...config,
     };
     this._render();
@@ -489,6 +521,14 @@ class NotificationChipCardEditor extends HTMLElement {
         name: "label",
         selector: { text: {} },
       },
+      {
+        name: "default_open",
+        selector: { boolean: {} },
+      },
+      {
+        name: "auto_open_critical",
+        selector: { boolean: {} },
+      },
     ];
   }
 
@@ -496,6 +536,8 @@ class NotificationChipCardEditor extends HTMLElement {
     return {
       entity: "通知 feed 實體",
       label: "按鈕文字（選填）",
+      default_open: "預設展開卡片",
+      auto_open_critical: "有緊急事件時自動展開",
     };
   }
 
@@ -552,7 +594,7 @@ class NotificationChipCardEditor extends HTMLElement {
         </div>
         <div class="section">
           <div class="section-title">顯示選項</div>
-          <div class="section-desc">可替 chip 的 bell icon 加上文字標籤，例如「告警訊息」。</div>
+          <div class="section-desc">可替 chip 的 bell icon 加上文字標籤，並設定預設展開或遇到緊急事件時自動展開。</div>
           <ha-form id="display-form"></ha-form>
         </div>
         <div class="hint">這是符合 Home Assistant 規範的簡易 editor，可直接設定實體與按鈕文字。</div>

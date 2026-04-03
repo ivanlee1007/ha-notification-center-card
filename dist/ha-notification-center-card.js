@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.7
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.8
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -85,6 +85,8 @@ class HaNotificationCenterCard extends HTMLElement {
     this._config = {
       show_chip: true,
       show_panel: true,
+      default_open: false,
+      auto_open_critical: false,
       max_items: 50,
       entity: "sensor.notification_feed",
       critical_entity: "binary_sensor.notification_any_critical",
@@ -104,6 +106,8 @@ class HaNotificationCenterCard extends HTMLElement {
       critical_entity: "binary_sensor.notification_any_critical",
       show_chip: true,
       show_panel: true,
+      default_open: false,
+      auto_open_critical: false,
       max_items: 20,
       button_label: "",
     };
@@ -111,6 +115,7 @@ class HaNotificationCenterCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    this._syncOpenState();
     const renderKey = this._buildRenderKey();
     if (renderKey !== this._lastRenderKey) {
       this._lastRenderKey = renderKey;
@@ -134,9 +139,35 @@ class HaNotificationCenterCard extends HTMLElement {
       maxItems: this._config.max_items ?? 50,
       showPanel: this._config.show_panel !== false,
       showChip: this._config.show_chip !== false,
+      defaultOpen: this._config.default_open === true,
+      autoOpenCritical: this._config.auto_open_critical === true,
       buttonLabel: this._config.button_label || "",
       open: this._dropdownOpen === true,
     });
+  }
+
+  _syncOpenState() {
+    if (!this._hass || !this._config) return;
+    const feed = this._hass.states?.[this._config.entity];
+    const anyCritical = this._hass.states?.[this._config.critical_entity];
+    const count = feed ? parseInt(feed.state) || 0 : 0;
+    const hasItems = count > 0;
+    const isCritical = anyCritical?.state === "on";
+
+    if (this._openStateInitialized !== true) {
+      this._openStateInitialized = true;
+      if (this._config.auto_open_critical === true && isCritical && hasItems) {
+        this._dropdownOpen = true;
+      } else if (this._config.default_open === true) {
+        this._dropdownOpen = true;
+      } else if (typeof this._dropdownOpen !== "boolean") {
+        this._dropdownOpen = false;
+      }
+    } else if (this._config.auto_open_critical === true && isCritical && this._lastCriticalState !== true && hasItems) {
+      this._dropdownOpen = true;
+    }
+
+    this._lastCriticalState = isCritical;
   }
 
   _render() {
@@ -342,10 +373,10 @@ class HaNotificationCenterCard extends HTMLElement {
           padding-top: 10px;
           margin-top: 8px;
           border-top: 1px solid rgba(0,0,0,0.05);
-          opacity: 0.8;
+          opacity: 0.68;
         }
         .notif-item:hover .snooze-bar {
-          opacity: 1;
+          opacity: 0.88;
         }
         .ack-row {
           display: flex;
@@ -358,11 +389,11 @@ class HaNotificationCenterCard extends HTMLElement {
           flex-wrap: wrap;
         }
         .snooze-label {
-          font-size: 10px; font-weight: 600;
+          font-size: 10px; font-weight: 500;
           text-transform: uppercase;
           letter-spacing: 0.1em;
           color: var(--secondary-text-color, #727272);
-          padding-top: 7px;
+          padding-top: 5px;
           flex: 0 0 auto;
         }
         .snooze-actions {
@@ -373,31 +404,31 @@ class HaNotificationCenterCard extends HTMLElement {
           min-width: 0;
         }
         .snooze-btn, .ack-btn {
-          padding: 4px 12px;
-          border-radius: 16px;
+          padding: 3px 10px;
+          border-radius: 14px;
           border: 1px solid rgba(0,0,0,0.08);
-          background: rgba(255,255,255,0.72);
+          background: rgba(255,255,255,0.58);
           color: var(--secondary-text-color, #616161);
-          font-size: 11px; font-weight: 500;
+          font-size: 10px; font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
           white-space: nowrap;
           box-shadow: none;
         }
         .snooze-btn:hover, .ack-btn:hover {
-          background: rgba(255,255,255,0.92);
-          border-color: rgba(0,0,0,0.16);
+          background: rgba(255,255,255,0.8);
+          border-color: rgba(0,0,0,0.12);
           color: var(--primary-text-color, #212121);
         }
         .ack-btn {
-          font-weight: 600;
-          border-color: rgba(76, 175, 80, 0.18);
-          background: rgba(76, 175, 80, 0.06);
-          color: #2e7d32;
+          font-weight: 500;
+          border-color: rgba(76, 175, 80, 0.14);
+          background: rgba(76, 175, 80, 0.045);
+          color: #2f6f33;
         }
         .ack-btn:hover {
-          border-color: rgba(76, 175, 80, 0.32);
-          background: rgba(76, 175, 80, 0.1);
+          border-color: rgba(76, 175, 80, 0.22);
+          background: rgba(76, 175, 80, 0.08);
           color: #1b5e20;
         }
         .ack-btn[disabled] {
@@ -554,6 +585,8 @@ class HaNotificationCenterCardEditor extends HTMLElement {
       critical_entity: "binary_sensor.notification_any_critical",
       show_chip: true,
       show_panel: true,
+      default_open: false,
+      auto_open_critical: false,
       max_items: 20,
       button_label: "",
       ...config,
@@ -594,6 +627,14 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         selector: { boolean: {} },
       },
       {
+        name: "default_open",
+        selector: { boolean: {} },
+      },
+      {
+        name: "auto_open_critical",
+        selector: { boolean: {} },
+      },
+      {
         name: "max_items",
         selector: { number: { min: 1, max: 100, step: 1, mode: "box" } },
       },
@@ -607,6 +648,8 @@ class HaNotificationCenterCardEditor extends HTMLElement {
       button_label: "按鈕文字（選填）",
       show_chip: "顯示 bell/chip 按鈕",
       show_panel: "允許展開通知面板",
+      default_open: "預設展開卡片",
+      auto_open_critical: "有緊急事件時自動展開",
       max_items: "最多顯示筆數",
     };
   }
@@ -667,7 +710,7 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         </div>
         <div class="section">
           <div class="section-title">顯示選項</div>
-          <div class="section-desc">控制 bell/chip、展開面板與顯示筆數。若只想在 icon 旁顯示文字，可填「按鈕文字」。</div>
+          <div class="section-desc">控制 bell/chip、展開面板、預設展開策略與顯示筆數。若只想在 icon 旁顯示文字，可填「按鈕文字」。</div>
           <ha-form id="display-form"></ha-form>
         </div>
         <div class="hint">這是 HA 原生 visual editor；你仍然可以切回 YAML 直接編輯。</div>
@@ -733,6 +776,8 @@ class NotificationChipCard extends HTMLElement {
   setConfig(config) {
     this._config = {
       label: "",
+      default_open: false,
+      auto_open_critical: false,
       ...config,
     };
     this.attachShadow({ mode: "open" });
@@ -749,11 +794,14 @@ class NotificationChipCard extends HTMLElement {
       type: "custom:notification-chip-card",
       entity: "sensor.notification_feed",
       label: "",
+      default_open: false,
+      auto_open_critical: false,
     };
   }
 
   set hass(hass) {
     this._hass = hass;
+    this._syncOpenState();
     const renderKey = this._buildRenderKey();
     if (renderKey !== this._lastRenderKey) {
       this._lastRenderKey = renderKey;
@@ -780,9 +828,34 @@ class NotificationChipCard extends HTMLElement {
       entityState: entity?.state ?? null,
       notifications: entity?.attributes?.notifications || [],
       label: this._config.label || "",
+      defaultOpen: this._config.default_open === true,
+      autoOpenCritical: this._config.auto_open_critical === true,
       open: this._dropdownOpen === true,
       expandedSnooze: this._expandedSnooze || null,
     });
+  }
+
+  _syncOpenState() {
+    if (!this._hass || !this._config) return;
+    const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
+    const notifications = entity?.attributes?.notifications || [];
+    const hasItems = (parseInt(entity?.state, 10) || 0) > 0;
+    const hasCritical = notifications.some((item) => item.priority === "critical");
+
+    if (this._openStateInitialized !== true) {
+      this._openStateInitialized = true;
+      if (this._config.auto_open_critical === true && hasCritical && hasItems) {
+        this._dropdownOpen = true;
+      } else if (this._config.default_open === true) {
+        this._dropdownOpen = true;
+      } else if (typeof this._dropdownOpen !== "boolean") {
+        this._dropdownOpen = false;
+      }
+    } else if (this._config.auto_open_critical === true && hasCritical && this._lastHasCritical !== true && hasItems) {
+      this._dropdownOpen = true;
+    }
+
+    this._lastHasCritical = hasCritical;
   }
 
   _positionDropdown() {
@@ -1138,6 +1211,8 @@ class NotificationChipCardEditor extends HTMLElement {
       type: "custom:notification-chip-card",
       entity: "sensor.notification_feed",
       label: "",
+      default_open: false,
+      auto_open_critical: false,
       ...config,
     };
     this._render();
@@ -1163,6 +1238,14 @@ class NotificationChipCardEditor extends HTMLElement {
         name: "label",
         selector: { text: {} },
       },
+      {
+        name: "default_open",
+        selector: { boolean: {} },
+      },
+      {
+        name: "auto_open_critical",
+        selector: { boolean: {} },
+      },
     ];
   }
 
@@ -1170,6 +1253,8 @@ class NotificationChipCardEditor extends HTMLElement {
     return {
       entity: "通知 feed 實體",
       label: "按鈕文字（選填）",
+      default_open: "預設展開卡片",
+      auto_open_critical: "有緊急事件時自動展開",
     };
   }
 
@@ -1226,7 +1311,7 @@ class NotificationChipCardEditor extends HTMLElement {
         </div>
         <div class="section">
           <div class="section-title">顯示選項</div>
-          <div class="section-desc">可替 chip 的 bell icon 加上文字標籤，例如「告警訊息」。</div>
+          <div class="section-desc">可替 chip 的 bell icon 加上文字標籤，並設定預設展開或遇到緊急事件時自動展開。</div>
           <ha-form id="display-form"></ha-form>
         </div>
         <div class="hint">這是符合 Home Assistant 規範的簡易 editor，可直接設定實體與按鈕文字。</div>
