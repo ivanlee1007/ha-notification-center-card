@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.4
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.5
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -247,19 +247,36 @@ class HaNotificationCenterCard extends HTMLElement {
         /* ── Snooze bar ── */
         .snooze-bar {
           width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          display: grid;
+          gap: 8px;
           padding-top: 10px;
           margin-top: 6px;
           border-top: 1px solid rgba(0,0,0,0.06);
+        }
+        .ack-row {
+          display: flex;
+          align-items: center;
+        }
+        .snooze-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          flex-wrap: wrap;
         }
         .snooze-label {
           font-size: 10px; font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.1em;
           color: var(--secondary-text-color, #727272);
-          margin-right: 4px;
+          padding-top: 7px;
+          flex: 0 0 auto;
+        }
+        .snooze-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          flex: 1 1 220px;
+          min-width: 0;
         }
         .snooze-btn, .ack-btn {
           padding: 5px 14px;
@@ -270,6 +287,7 @@ class HaNotificationCenterCard extends HTMLElement {
           font-size: 12px; font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
+          white-space: nowrap;
         }
         .snooze-btn:hover, .ack-btn:hover {
           background: var(--secondary-background-color, #f0f0f0);
@@ -330,12 +348,18 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="divider"></div>
                     <div class="timer"><ha-icon icon="mdi:timer-outline"></ha-icon></div>
                     <div class="snooze-bar">
-                      <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? "Acknowledged" : "Acknowledge"}</button>
-                      <span class="snooze-label">SNOOZE:</span>
-                      <button class="snooze-btn" data-hours="1">1h</button>
-                      <button class="snooze-btn" data-hours="4">4h</button>
-                      <button class="snooze-btn" data-hours="24">Tomorrow</button>
-                      <button class="snooze-btn" data-hours="48">Day after</button>
+                      <div class="ack-row">
+                        <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? "Acknowledged" : "Acknowledge"}</button>
+                      </div>
+                      <div class="snooze-row">
+                        <span class="snooze-label">SNOOZE:</span>
+                        <div class="snooze-actions">
+                          <button class="snooze-btn" data-hours="1">1h</button>
+                          <button class="snooze-btn" data-hours="4">4h</button>
+                          <button class="snooze-btn" data-hours="24">Tomorrow</button>
+                          <button class="snooze-btn" data-hours="48">Day after</button>
+                        </div>
+                      </div>
                     </div>
                   </div>`;
               }).join("")}</div>`
