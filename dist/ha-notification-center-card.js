@@ -492,7 +492,7 @@ class HaNotificationCenterCard extends HTMLElement {
                 const icon = n.icon || iconMap[pri] || "mdi:bell";
                 const isActionsOpen = this._expandedActions === n.source_id;
                 return `
-                  <div class="notif-item pri-${pri} ${n.acknowledged ? "ack" : ""}" data-entity="${n.tap_action_entity || ""}" data-source="${n.source_id}">
+                  <div class="notif-item pri-${pri} ${n.acknowledged ? "ack" : ""}" data-entity="${n.tap_action_entity || ""}" data-source="${n.source_id}" data-tap-action="${n.tap_action || "more-info"}" data-tap-nav-path="${n.tap_action_navigation_path || ""}" data-tap-url-path="${n.tap_action_url_path || ""}">
                     <div class="icon-box"><ha-icon icon="${icon}"></ha-icon></div>
                     <div class="body">
                       <div class="name">${this._esc(n.name)}</div>
@@ -602,12 +602,30 @@ class HaNotificationCenterCard extends HTMLElement {
       };
     });
 
-    this.shadowRoot.querySelectorAll(".notif-item[data-entity]").forEach((item) => {
-      const entity = item.dataset.entity;
-      if (entity) {
+    this.shadowRoot.querySelectorAll(".notif-item").forEach((item) => {
+      const tapAction = item.dataset.tapAction || "more-info";
+      const entity = item.dataset.entity || "";
+      const navPath = item.dataset.tapNavPath || "";
+      const urlPath = item.dataset.tapUrlPath || "";
+      if (tapAction || entity) {
         item.querySelector(".body").style.cursor = "pointer";
-        item.querySelector(".body").onclick = () => {
-          this._hass.navigatePath(`/config/devices/dashboard?entity=${entity}`);
+        item.querySelector(".body").onclick = (ev) => {
+          ev.stopPropagation();
+          if (tapAction === "url" && urlPath) {
+            window.open(urlPath, "_blank");
+          } else if (tapAction === "navigate" && navPath) {
+            this._hass.navigatePath(navPath);
+          } else {
+            // default: more-info
+            const eid = entity;
+            if (eid && this._hass) {
+              this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
+                detail: { entityId: eid },
+                bubbles: true,
+                composed: true,
+              }));
+            }
+          }
         };
       }
     });

@@ -201,19 +201,24 @@ class NotificationChipCard extends HTMLElement {
     this._render();
   }
 
-  _handleTap(eid) {
-    if (!eid) return;
-    // Try to toggle the source entity directly
-    const state = this._hass.states[eid];
-    if (state) {
-      const domain = eid.split(".")[0];
-      if (domain === "binary_sensor" || domain === "sensor") {
-        // For sensors, navigate to the entity
-        window.history.pushState({}, "", `/config/dashboard/devices/device/${state.attributes.device_id || eid}`);
-        window.dispatchEvent(new Event("location-changed"));
-      } else {
-        const service = state.state === "on" ? "turn_off" : "turn_on";
-        this._hass.callService(domain, service, { entity_id: eid });
+  _handleTap(el) {
+    const tapAction = el.dataset.tapAction || "more-info";
+    const eid = el.dataset.entity || "";
+    const navPath = el.dataset.tapNavPath || "";
+    const urlPath = el.dataset.tapUrlPath || "";
+
+    if (tapAction === "url" && urlPath) {
+      window.open(urlPath, "_blank");
+    } else if (tapAction === "navigate" && navPath) {
+      this._hass.navigatePath(navPath);
+    } else {
+      // default: more-info
+      if (eid && this._hass) {
+        this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
+          detail: { entityId: eid },
+          bubbles: true,
+          composed: true,
+        }));
       }
     }
   }
@@ -273,7 +278,7 @@ class NotificationChipCard extends HTMLElement {
 
       itemsHtml += `
         <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}">
-          <div class="notif-content" data-entity="${eid}">
+          <div class="notif-content" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}">
             <div class="notif-avatar" style="background:${style.color}">
               <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
             </div>
@@ -496,7 +501,7 @@ class NotificationChipCard extends HTMLElement {
 
     // Tap notification → action
     this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
-      el.addEventListener("click", () => this._handleTap(el.dataset.entity));
+      el.addEventListener("click", () => this._handleTap(el));
     });
 
     // More-actions toggle buttons
