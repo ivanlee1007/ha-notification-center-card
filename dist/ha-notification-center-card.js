@@ -419,7 +419,7 @@ class HaNotificationCenterCard extends HTMLElement {
           flex: 1 1 220px;
           min-width: 0;
         }
-        .snooze-btn, .ack-btn {
+        .snooze-btn, .ack-btn, .clear-btn {
           padding: 3px 10px;
           border-radius: 14px;
           border: 1px solid rgba(0,0,0,0.08);
@@ -431,7 +431,7 @@ class HaNotificationCenterCard extends HTMLElement {
           white-space: nowrap;
           box-shadow: none;
         }
-        .snooze-btn:hover, .ack-btn:hover {
+        .snooze-btn:hover, .ack-btn:hover, .clear-btn:hover {
           background: rgba(255,255,255,0.8);
           border-color: rgba(0,0,0,0.12);
           color: var(--primary-text-color, #212121);
@@ -447,22 +447,15 @@ class HaNotificationCenterCard extends HTMLElement {
           background: rgba(76, 175, 80, 0.08);
           color: #1b5e20;
         }
-        .clear-row {
-          display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.05);
-        }
         .clear-btn {
-          background: transparent;
-          border: 1px solid #ff5252;
-          color: #ff5252;
-          border-radius: 6px;
-          padding: 4px 12px;
-          font-size: 11px;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          border-color: rgba(244, 67, 54, 0.14);
+          background: rgba(244, 67, 54, 0.045);
+          color: #c62828;
         }
         .clear-btn:hover {
-          background: #ff5252;
-          color: #fff;
+          border-color: rgba(244, 67, 54, 0.22);
+          background: rgba(244, 67, 54, 0.08);
+          color: #b71c1c;
         }
 
         /* ── Empty ── */
@@ -511,6 +504,7 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
                       <div class="ack-row">
                         <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
+                        ${n.type === "manual" ? `<button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button>` : ""}
                       </div>
                       <div class="snooze-row">
                         <span class="snooze-label">${t("snooze")}</span>
@@ -521,7 +515,6 @@ class HaNotificationCenterCard extends HTMLElement {
                           <button class="snooze-btn" data-hours="48">${t("dayAfter")}</button>
                         </div>
                       </div>
-                      ${n.type === "manual" ? `<div class="clear-row"><button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button></div>` : ""}
                     </div>
                   </div>`;
               }).join("")}</div>`

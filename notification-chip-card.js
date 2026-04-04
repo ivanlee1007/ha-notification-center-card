@@ -290,11 +290,11 @@ class NotificationChipCard extends HTMLElement {
           </div>
           <div class="more-panel" style="display:${isActionsOpen ? "flex" : "none"}">
             <button class="ack-action-btn" data-source="${item.source_id}" ${isAcked ? "disabled" : ""}>${isAcked ? t("acknowledged") : t("acknowledge")}</button>
+            ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}">${t("clear")}</button>` : ""}
             <button data-hours="1" data-source="${item.source_id}">1h</button>
             <button data-hours="4" data-source="${item.source_id}">4h</button>
             <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
             <button data-hours="48" data-source="${item.source_id}">${t("dayAfter")}</button>
-            ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}" style="color:#ff5252;border-color:#ff5252;">${t("clear")}</button>` : ""}
           </div>
         </div>`;
     });
@@ -442,6 +442,16 @@ class NotificationChipCard extends HTMLElement {
         .ack-action-btn[disabled] {
           opacity: 0.55;
           cursor: default;
+        }
+        .clear-btn {
+          border-color: rgba(244,67,54,0.18) !important;
+          color: #c62828 !important;
+          background: rgba(244,67,54,0.05) !important;
+        }
+        .clear-btn:hover {
+          border-color: rgba(244,67,54,0.28) !important;
+          background: rgba(244,67,54,0.12) !important;
+          color: #b71c1c !important;
         }
 
         /* Empty state */
