@@ -204,6 +204,7 @@ class NotificationChipCard extends HTMLElement {
   _handleTap(el) {
     const tapAction = el.dataset.tapAction || "more-info";
     const eid = el.dataset.entity || "";
+    const sourceId = el.dataset.source || el.closest(".notif-item")?.dataset.source || "";
     const navPath = el.dataset.tapNavPath || "";
     const urlPath = el.dataset.tapUrlPath || "";
     const svcDomain = el.dataset.tapSvcDomain || "";
@@ -215,6 +216,8 @@ class NotificationChipCard extends HTMLElement {
       window.open(urlPath, "_blank");
     } else if (tapAction === "navigate" && navPath) {
       this._hass.navigatePath(navPath);
+    } else if (tapAction === "call_service" && sourceId && this._hass) {
+      this._hass.callService("ha_notification_center", "execute_tap_action", { source_id: sourceId });
     } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
       this._hass.callService(svcDomain, svc, svcData);
     } else {
@@ -279,8 +282,8 @@ class NotificationChipCard extends HTMLElement {
       const ago = item.timestamp ? this._timeAgo(item.timestamp) : "";
 
       itemsHtml += `
-        <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}">
-          <div class="notif-content" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}" data-tap-svc-domain="${item.tap_action_service_domain || ""}" data-tap-svc="${item.tap_action_service || ""}" data-tap-svc-data='${JSON.stringify(item.tap_action_service_data || {})}'>
+        <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}" data-source="${item.source_id || ""}">
+          <div class="notif-content" data-source="${item.source_id || ""}" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}" data-tap-svc-domain="${item.tap_action_service_domain || ""}" data-tap-svc="${item.tap_action_service || ""}" data-tap-svc-data='${JSON.stringify(item.tap_action_service_data || {})}'>
             <div class="notif-avatar" style="background:${style.color}">
               <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
             </div>
