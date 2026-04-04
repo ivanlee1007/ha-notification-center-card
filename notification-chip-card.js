@@ -206,19 +206,21 @@ class NotificationChipCard extends HTMLElement {
     const eid = el.dataset.entity || "";
     const navPath = el.dataset.tapNavPath || "";
     const urlPath = el.dataset.tapUrlPath || "";
+    const svcDomain = el.dataset.tapSvcDomain || "";
+    const svc = el.dataset.tapSvc || "";
+    let svcData = {};
+    try { svcData = JSON.parse(el.dataset.tapSvcData || "{}"); } catch (e) {}
 
     if (tapAction === "url" && urlPath) {
       window.open(urlPath, "_blank");
     } else if (tapAction === "navigate" && navPath) {
       this._hass.navigatePath(navPath);
+    } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
+      this._hass.callService(svcDomain, svc, svcData);
     } else {
       // default: more-info
       if (eid && this._hass) {
-        this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
-          detail: { entityId: eid },
-          bubbles: true,
-          composed: true,
-        }));
+        this._hass.moreInfoEntityId = eid;
       }
     }
   }
@@ -278,7 +280,7 @@ class NotificationChipCard extends HTMLElement {
 
       itemsHtml += `
         <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}">
-          <div class="notif-content" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}">
+          <div class="notif-content" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}" data-tap-svc-domain="${item.tap_action_service_domain || ""}" data-tap-svc="${item.tap_action_service || ""}" data-tap-svc-data='${JSON.stringify(item.tap_action_service_data || {})}'>
             <div class="notif-avatar" style="background:${style.color}">
               <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
             </div>
@@ -499,10 +501,16 @@ class NotificationChipCard extends HTMLElement {
     this._clickOutsideHandler = (e) => this._handleClickOutside(e);
     setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 100);
 
-    // Tap notification → action
-    this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
-      el.addEventListener("click", () => this._handleTap(el));
-    });
+    // Tap notification → action (event delegation, survives DOM rebuilds)
+    if (!this._tapDelegationBound) {
+      this._tapDelegationBound = true;
+      this.shadowRoot.addEventListener("click", (ev) => {
+        const item = ev.target.closest(".notif-content[data-entity]");
+        if (!item) return;
+        ev.stopPropagation();
+        this._handleTap(item);
+      });
+    }
 
     // More-actions toggle buttons
     this.shadowRoot.querySelectorAll(".more-btn").forEach(el => {

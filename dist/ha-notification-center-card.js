@@ -492,7 +492,7 @@ class HaNotificationCenterCard extends HTMLElement {
                 const icon = n.icon || iconMap[pri] || "mdi:bell";
                 const isActionsOpen = this._expandedActions === n.source_id;
                 return `
-                  <div class="notif-item pri-${pri} ${n.acknowledged ? "ack" : ""}" data-entity="${n.tap_action_entity || ""}" data-source="${n.source_id}" data-tap-action="${n.tap_action || "more-info"}" data-tap-nav-path="${n.tap_action_navigation_path || ""}" data-tap-url-path="${n.tap_action_url_path || ""}">
+                  <div class="notif-item pri-${pri} ${n.acknowledged ? "ack" : ""}" data-entity="${n.tap_action_entity || ""}" data-source="${n.source_id}" data-tap-action="${n.tap_action || "more-info"}" data-tap-nav-path="${n.tap_action_navigation_path || ""}" data-tap-url-path="${n.tap_action_url_path || ""}" data-tap-svc-domain="${n.tap_action_service_domain || ""}" data-tap-svc="${n.tap_action_service || ""}" data-tap-svc-data='${JSON.stringify(n.tap_action_service_data || {})}'>
                     <div class="icon-box"><ha-icon icon="${icon}"></ha-icon></div>
                     <div class="body">
                       <div class="name">${this._esc(n.name)}</div>
@@ -615,18 +615,20 @@ class HaNotificationCenterCard extends HTMLElement {
         const entity = notifItem.dataset.entity || "";
         const navPath = notifItem.dataset.tapNavPath || "";
         const urlPath = notifItem.dataset.tapUrlPath || "";
+        const svcDomain = notifItem.dataset.tapSvcDomain || "";
+        const svc = notifItem.dataset.tapSvc || "";
+        let svcData = {};
+        try { svcData = JSON.parse(notifItem.dataset.tapSvcData || "{}"); } catch (e) {}
         if (tapAction === "url" && urlPath) {
           window.open(urlPath, "_blank");
         } else if (tapAction === "navigate" && navPath) {
           this._hass?.navigatePath(navPath);
+        } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
+          this._hass.callService(svcDomain, svc, svcData);
         } else {
           // default: more-info
           if (entity && this._hass) {
-            this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
-              detail: { entityId: entity },
-              bubbles: true,
-              composed: true,
-            }));
+            this._hass.moreInfoEntityId = entity;
           }
         }
       });
@@ -990,19 +992,21 @@ class NotificationChipCard extends HTMLElement {
     const eid = item.dataset.entity || "";
     const navPath = item.dataset.tapNavPath || "";
     const urlPath = item.dataset.tapUrlPath || "";
+    const svcDomain = item.dataset.tapSvcDomain || "";
+    const svc = item.dataset.tapSvc || "";
+    let svcData = {};
+    try { svcData = JSON.parse(item.dataset.tapSvcData || "{}"); } catch (e) {}
 
     if (tapAction === "url" && urlPath) {
       window.open(urlPath, "_blank");
     } else if (tapAction === "navigate" && navPath) {
       this._hass.navigatePath(navPath);
+    } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
+      this._hass.callService(svcDomain, svc, svcData);
     } else {
       // default: more-info
       if (eid && this._hass) {
-        this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
-          detail: { entityId: eid },
-          bubbles: true,
-          composed: true,
-        }));
+        this._hass.moreInfoEntityId = eid;
       }
     }
   }
@@ -1062,7 +1066,7 @@ class NotificationChipCard extends HTMLElement {
 
       itemsHtml += `
         <div class="notif-item ${isAcked ? "acked" : ""}" data-priority="${item.priority}">
-          <div class="notif-content" data-entity="${eid}">
+          <div class="notif-content" data-entity="${eid}" data-tap-action="${item.tap_action || "more-info"}" data-tap-nav-path="${item.tap_action_navigation_path || ""}" data-tap-url-path="${item.tap_action_url_path || ""}" data-tap-svc-domain="${item.tap_action_service_domain || ""}" data-tap-svc="${item.tap_action_service || ""}" data-tap-svc-data='${JSON.stringify(item.tap_action_service_data || {})}'>
             <div class="notif-avatar" style="background:${style.color}">
               <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
             </div>
