@@ -602,32 +602,38 @@ class HaNotificationCenterCard extends HTMLElement {
       };
     });
 
-    this.shadowRoot.querySelectorAll(".notif-item").forEach((item) => {
-      const tapAction = item.dataset.tapAction || "more-info";
-      const entity = item.dataset.entity || "";
-      const navPath = item.dataset.tapNavPath || "";
-      const urlPath = item.dataset.tapUrlPath || "";
-      if (tapAction || entity) {
-        item.querySelector(".body").style.cursor = "pointer";
-        item.querySelector(".body").onclick = (ev) => {
-          ev.stopPropagation();
-          if (tapAction === "url" && urlPath) {
-            window.open(urlPath, "_blank");
-          } else if (tapAction === "navigate" && navPath) {
-            this._hass.navigatePath(navPath);
-          } else {
-            // default: more-info
-            const eid = entity;
-            if (eid && this._hass) {
-              this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
-                detail: { entityId: eid },
-                bubbles: true,
-                composed: true,
-              }));
-            }
+    // Event delegation for notification body clicks (survives DOM rebuilds)
+    if (!this._bodyClickBound) {
+      this._bodyClickBound = true;
+      this.shadowRoot.addEventListener("click", (ev) => {
+        const item = ev.target.closest(".notif-item .body, .notif-item .icon-box, .notif-item .name");
+        if (!item) return;
+        const notifItem = item.closest(".notif-item");
+        if (!notifItem) return;
+        ev.stopPropagation();
+        const tapAction = notifItem.dataset.tapAction || "more-info";
+        const entity = notifItem.dataset.entity || "";
+        const navPath = notifItem.dataset.tapNavPath || "";
+        const urlPath = notifItem.dataset.tapUrlPath || "";
+        if (tapAction === "url" && urlPath) {
+          window.open(urlPath, "_blank");
+        } else if (tapAction === "navigate" && navPath) {
+          this._hass?.navigatePath(navPath);
+        } else {
+          // default: more-info
+          if (entity && this._hass) {
+            this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
+              detail: { entityId: entity },
+              bubbles: true,
+              composed: true,
+            }));
           }
-        };
-      }
+        }
+      });
+    }
+    // Set cursor pointer on body elements
+    this.shadowRoot.querySelectorAll(".notif-item .body").forEach((el) => {
+      el.style.cursor = "pointer";
     });
 
     const nextListEl = this.shadowRoot.querySelector(".notif-list");
@@ -979,19 +985,24 @@ class NotificationChipCard extends HTMLElement {
     this._render();
   }
 
-  _handleTap(eid) {
-    if (!eid) return;
-    // Try to toggle the source entity directly
-    const state = this._hass.states[eid];
-    if (state) {
-      const domain = eid.split(".")[0];
-      if (domain === "binary_sensor" || domain === "sensor") {
-        // For sensors, navigate to the entity
-        window.history.pushState({}, "", `/config/dashboard/devices/device/${state.attributes.device_id || eid}`);
-        window.dispatchEvent(new Event("location-changed"));
-      } else {
-        const service = state.state === "on" ? "turn_off" : "turn_on";
-        this._hass.callService(domain, service, { entity_id: eid });
+  _handleTap(item) {
+    const tapAction = item.dataset.tapAction || "more-info";
+    const eid = item.dataset.entity || "";
+    const navPath = item.dataset.tapNavPath || "";
+    const urlPath = item.dataset.tapUrlPath || "";
+
+    if (tapAction === "url" && urlPath) {
+      window.open(urlPath, "_blank");
+    } else if (tapAction === "navigate" && navPath) {
+      this._hass.navigatePath(navPath);
+    } else {
+      // default: more-info
+      if (eid && this._hass) {
+        this._hass.dispatchEvent(new CustomEvent("hass-more-info", {
+          detail: { entityId: eid },
+          bubbles: true,
+          composed: true,
+        }));
       }
     }
   }
@@ -1263,7 +1274,7 @@ class NotificationChipCard extends HTMLElement {
 
     // Tap notification → action
     this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
-      el.addEventListener("click", () => this._handleTap(el.dataset.entity));
+      el.addEventListener("click", () => this._handleTap(el));
     });
 
     // More-actions toggle buttons
