@@ -1,5 +1,5 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.9
+ * UNiNUS Notification Center — Lovelace Custom Card v1.3.10
  *
  * Full notification panel matching original design:
  * - NOTIFICATIONS header with legend
@@ -23,6 +23,7 @@ const NOTIFICATION_CARD_I18N = {
     ackTitle: "Acknowledge",
     snoozeTitle: "Snooze",
     moreActions: "More actions",
+    clear: "Clear",
     now: "now",
     minutesAgo: (n) => `${n}m`,
     hoursAgo: (n) => `${n}h`,
@@ -42,6 +43,7 @@ const NOTIFICATION_CARD_I18N = {
     ackTitle: "確認",
     snoozeTitle: "稍後提醒",
     moreActions: "更多操作",
+    clear: "清除",
     now: "剛剛",
     minutesAgo: (n) => `${n} 分鐘前`,
     hoursAgo: (n) => `${n} 小時前`,
@@ -445,9 +447,22 @@ class HaNotificationCenterCard extends HTMLElement {
           background: rgba(76, 175, 80, 0.08);
           color: #1b5e20;
         }
-        .ack-btn[disabled] {
-          opacity: 0.45;
-          cursor: default;
+        .clear-row {
+          display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .clear-btn {
+          background: transparent;
+          border: 1px solid #ff5252;
+          color: #ff5252;
+          border-radius: 6px;
+          padding: 4px 12px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .clear-btn:hover {
+          background: #ff5252;
+          color: #fff;
         }
 
         /* ── Empty ── */
@@ -506,6 +521,7 @@ class HaNotificationCenterCard extends HTMLElement {
                           <button class="snooze-btn" data-hours="48">${t("dayAfter")}</button>
                         </div>
                       </div>
+                      ${n.type === "manual" ? `<div class="clear-row"><button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button></div>` : ""}
                     </div>
                   </div>`;
               }).join("")}</div>`
@@ -560,6 +576,18 @@ class HaNotificationCenterCard extends HTMLElement {
         const sourceId = btn.dataset.source;
         if (sourceId && !btn.disabled) {
           this._hass.callService("ha_notification_center", "acknowledge", { source_id: sourceId });
+          this._expandedActions = null;
+          this._render();
+        }
+      };
+    });
+
+    this.shadowRoot.querySelectorAll(".clear-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const sourceId = btn.dataset.source;
+        if (sourceId) {
+          this._hass.callService("ha_notification_center", "clear_notification", { source_id: sourceId });
           this._expandedActions = null;
           this._render();
         }

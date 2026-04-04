@@ -9,6 +9,7 @@ const NOTIFICATION_CHIP_I18N = {
     ackTitle: "Acknowledge",
     snoozeTitle: "Snooze",
     moreActions: "More actions",
+    clear: "Clear",
     tomorrow: "Tomorrow",
     dayAfter: "Day after",
     now: "now",
@@ -26,6 +27,7 @@ const NOTIFICATION_CHIP_I18N = {
     ackTitle: "確認",
     snoozeTitle: "稍後提醒",
     moreActions: "更多操作",
+    clear: "清除",
     tomorrow: "明天",
     dayAfter: "後天",
     now: "剛剛",
@@ -292,6 +294,7 @@ class NotificationChipCard extends HTMLElement {
             <button data-hours="4" data-source="${item.source_id}">4h</button>
             <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
             <button data-hours="48" data-source="${item.source_id}">${t("dayAfter")}</button>
+            ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}" style="color:#ff5252;border-color:#ff5252;">${t("clear")}</button>` : ""}
           </div>
         </div>`;
     });
@@ -498,6 +501,16 @@ class NotificationChipCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".ack-action-btn").forEach(el => {
       el.addEventListener("click", (e) => {
         this._handleAcknowledge(el.dataset.source, e);
+      });
+    });
+
+    // Clear buttons
+    this.shadowRoot.querySelectorAll(".clear-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._hass.callService("ha_notification_center", "clear_notification", { source_id: el.dataset.source });
+        this._expandedActions = null;
+        this._render();
       });
     });
 
