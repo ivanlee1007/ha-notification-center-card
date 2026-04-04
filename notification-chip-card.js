@@ -223,7 +223,7 @@ class NotificationChipCard extends HTMLElement {
     } else {
       // default: more-info
       if (eid && this._hass) {
-        this._hass.moreInfoEntityId = eid;
+        this.fireEvent("hass-more-info", { entityId: eid });
       }
     }
   }

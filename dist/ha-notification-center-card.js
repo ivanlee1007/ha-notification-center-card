@@ -631,7 +631,7 @@ class HaNotificationCenterCard extends HTMLElement {
         } else {
           // default: more-info
           if (entity && this._hass) {
-            this._hass.moreInfoEntityId = entity;
+            this.fireEvent("hass-more-info", { entityId: entity });
           }
         }
       });
@@ -1012,7 +1012,7 @@ class NotificationChipCard extends HTMLElement {
     } else {
       // default: more-info
       if (eid && this._hass) {
-        this._hass.moreInfoEntityId = eid;
+        this.fireEvent("hass-more-info", { entityId: eid });
       }
     }
   }
