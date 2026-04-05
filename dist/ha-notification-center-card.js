@@ -478,6 +478,28 @@ class HaNotificationCenterCard extends HTMLElement {
           color: #0d47a1;
         }
 
+        /* ── Action Detail Row ── */
+        .action-detail-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 4px 4px 4px 0;
+          border-top: 1px solid rgba(0,0,0,0.05);
+          margin-top: 2px;
+        }
+        .action-detail-text {
+          font-size: 10px;
+          color: var(--secondary-text-color, #9e9e9e);
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .action-detail-text .action-type {
+          color: var(--primary-text-color, #212121);
+          font-weight: 500;
+        }
+
         /* ── Empty ── */
         .empty {
           padding: 40px 16px;
@@ -525,9 +547,12 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
                       <div class="ack-row">
                         <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
-                        ${(n.tap_action && n.tap_action !== "more-info") ? `<button class="action-btn" data-source="${n.source_id}">${this._getTapActionLabel(n)}</button>` : ""}
                         ${n.type === "manual" ? `<button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button>` : ""}
                       </div>
+                      ${(n.tap_action && n.tap_action !== "more-info") ? `<div class="action-detail-row">
+                        <div class="action-detail-text">${this._getActionDetailText(n)}</div>
+                        <button class="action-btn" data-source="${n.source_id}">執行</button>
+                      </div>` : ""}
                       <div class="snooze-row">
                         <span class="snooze-label">${t("snooze")}</span>
                         <div class="snooze-actions">
@@ -680,6 +705,22 @@ class HaNotificationCenterCard extends HTMLElement {
     this._lastRenderKey = this._buildRenderKey();
   }
 
+  _getActionDetailText(n) {
+    if (n.tap_action === "call_service") {
+      const svc = (n.tap_action_service_domain ? n.tap_action_service_domain + "." : "") + (n.tap_action_service || "?");
+      return `<span class="action-type">類型: 執行服務</span> 目標: ${svc}`;
+    }
+    if (n.tap_action === "url") {
+      try {
+        const u = new URL(n.tap_action_url_path.startsWith("http") ? n.tap_action_url_path : "http://" + n.tap_action_url_path);
+        return `<span class="action-type">類型: 開啟連結</span> 網址: ${u.hostname}${u.pathname.length > 16 ? u.pathname.substring(0,16)+"…" : u.pathname}`;
+      } catch { return `<span class="action-type">類型: 開啟連結</span> 網址: ${n.tap_action_url_path || "?"}`; }
+    }
+    if (n.tap_action === "navigate") {
+      return `<span class="action-type">類型: 導航</span> 路徑: ${n.tap_action_navigation_path || "?"}`;
+    }
+    return `<span class="action-type">類型: ${n.tap_action || "?"}</span>`;
+  }
   _getTapActionLabel(n) {
     if (n.tap_action_service_domain && n.tap_action_service) {
       return n.tap_action_service_domain + "." + n.tap_action_service;
