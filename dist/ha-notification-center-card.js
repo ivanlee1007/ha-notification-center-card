@@ -429,7 +429,7 @@ class HaNotificationCenterCard extends HTMLElement {
           flex: 1 1 220px;
           min-width: 0;
         }
-        .snooze-btn, .ack-btn, .clear-btn {
+        .snooze-btn, .ack-btn, .clear-btn, .action-btn {
           padding: 3px 10px;
           border-radius: 14px;
           border: 1px solid rgba(0,0,0,0.08);
@@ -473,8 +473,8 @@ class HaNotificationCenterCard extends HTMLElement {
           color: #1565c0;
         }
         .action-btn:hover {
+          background: rgba(255,255,255,0.8);
           border-color: rgba(33,150,243,0.6);
-          background: rgba(33,150,243,0.2);
           color: #0d47a1;
         }
 
@@ -692,7 +692,7 @@ class HaNotificationCenterCard extends HTMLElement {
       } catch { return n.tap_action_url_path.length > 15 ? n.tap_action_url_path.substring(0, 15) + "…" : n.tap_action_url_path; }
     }
     if (n.tap_action_navigation_path) return "→ " + n.tap_action_navigation_path.split("/").pop();
-    return "執行動作";
+    return "執行 " + (n.name || "?");
   }
 
   _esc(str) {
