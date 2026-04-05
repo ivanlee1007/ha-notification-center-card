@@ -86,6 +86,7 @@ class HaNotificationCenterCard extends HTMLElement {
       show_panel: true,
       default_open: false,
       auto_open_critical: false,
+      always_expand: false,
       max_items: 50,
       entity: "sensor.notification_feed",
       critical_entity: "binary_sensor.notification_any_critical",
@@ -107,6 +108,7 @@ class HaNotificationCenterCard extends HTMLElement {
       show_panel: true,
       default_open: false,
       auto_open_critical: false,
+      always_expand: false,
       max_items: 20,
       button_label: "",
     };
@@ -140,6 +142,7 @@ class HaNotificationCenterCard extends HTMLElement {
       showChip: this._config.show_chip !== false,
       defaultOpen: this._config.default_open === true,
       autoOpenCritical: this._config.auto_open_critical === true,
+      alwaysExpand: this._config.always_expand === true,
       buttonLabel: this._config.button_label || "",
       open: this._dropdownOpen === true,
       expandedActions: this._expandedActions || null,
@@ -491,7 +494,7 @@ class HaNotificationCenterCard extends HTMLElement {
           </div>
         </div>
 
-        <div class="panel" id="panel" style="display:${this._config.show_panel !== false && dropdownOpen ? "block" : "none"}">
+        <div class="panel" id="panel" style="display:${(this._config.show_panel !== false && (dropdownOpen || this._config.always_expand === true) ? "block" : "none")}">
           ${count === 0
             ? `<div class="empty">${t("noNotifications")}</div>`
             : `<div class="notif-list">${items.map(n => {
@@ -536,9 +539,11 @@ class HaNotificationCenterCard extends HTMLElement {
     if (bell) {
       bell.onclick = (e) => {
         e.stopPropagation();
-        this._dropdownOpen = !this._dropdownOpen;
-        if (!this._dropdownOpen) this._expandedActions = null;
-        this._render();
+        if (this._config.always_expand !== true) {
+          this._dropdownOpen = !this._dropdownOpen;
+          if (!this._dropdownOpen) this._expandedActions = null;
+          this._render();
+        }
       };
     }
 
@@ -554,7 +559,8 @@ class HaNotificationCenterCard extends HTMLElement {
         bellEl &&
         panelEl &&
         !path.includes(bellEl) &&
-        !path.includes(panelEl)
+        !path.includes(panelEl) &&
+        this._config.always_expand !== true
       ) {
         this._dropdownOpen = false;
         this._expandedActions = null;
@@ -675,6 +681,7 @@ class HaNotificationCenterCardEditor extends HTMLElement {
       show_panel: true,
       default_open: false,
       auto_open_critical: false,
+      always_expand: false,
       max_items: 20,
       button_label: "",
       ...config,
@@ -723,6 +730,14 @@ class HaNotificationCenterCardEditor extends HTMLElement {
         selector: { boolean: {} },
       },
       {
+        name: "always_expand",
+        selector: { boolean: {} },
+      },
+      {
+        name: "auto_open_critical",
+        selector: { boolean: {} },
+      },
+      {
         name: "max_items",
         selector: { number: { min: 1, max: 100, step: 1, mode: "box" } },
       },
@@ -738,6 +753,7 @@ class HaNotificationCenterCardEditor extends HTMLElement {
       show_panel: "允許展開通知面板",
       default_open: "預設展開卡片",
       auto_open_critical: "有緊急事件時自動展開",
+      always_expand: "永遠展開卡片",
       max_items: "最多顯示筆數",
     };
   }
