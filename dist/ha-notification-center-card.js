@@ -707,8 +707,14 @@ class HaNotificationCenterCard extends HTMLElement {
 
   _getActionDetailText(n) {
     if (n.tap_action === "call_service") {
-      const svc = (n.tap_action_service_domain ? n.tap_action_service_domain + "." : "") + (n.tap_action_service || "?");
-      return `<span class="action-type">類型: 執行服務</span> 目標: ${svc}`;
+      const actions = n.tap_action_action || [];
+      if (actions.length > 0) {
+        const a0 = actions[0];
+        const actName = a0.action || "?";
+        const entities = (a0.target && a0.target.entity_id) ? a0.target.entity_id.join(", ") : (a0.target && a0.target.entity_id ? a0.target.entity_id : "");
+        return `<span class="action-type">類型: 執行服務</span> 動作: ${actName} 目標: ${entities || "-"}`;
+      }
+      return `<span class="action-type">類型: 執行服務</span> (無動作資訊)`;
     }
     if (n.tap_action === "url") {
       try {
