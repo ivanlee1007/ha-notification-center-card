@@ -1,12 +1,7 @@
 /**
- * UNiNUS Notification Center — Lovelace Custom Card v1.3.16
- *
- * Full notification panel matching original design:
- * - NOTIFICATIONS header with legend
- * - Red bell icon + blue badge (+ optional text label)
- * - Color-coded pill items with square icon boxes
- * - Inline acknowledge + snooze actions
- * - Frontend-local dropdown state (no cross-browser coupling)
+ * UNiNUS Notification Center — Lovelace Custom Card
+ * Copyright 2026 ivanlee1007
+ * Licensed under the Apache License, Version 2.0
  */
 const NOTIFICATION_CARD_I18N = {
   en: {

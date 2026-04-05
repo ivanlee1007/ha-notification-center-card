@@ -1,3 +1,9 @@
+/**
+ * UNiNUS Notification Center — Notification Chip Card
+ * Copyright 2026 ivanlee1007
+ * Licensed under the Apache License, Version 2.0
+ */
+
 const NOTIFICATION_CHIP_I18N = {
   en: {
     critical: "Critical",
