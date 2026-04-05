@@ -467,6 +467,16 @@ class HaNotificationCenterCard extends HTMLElement {
           background: rgba(244, 67, 54, 0.08);
           color: #b71c1c;
         }
+        .action-btn {
+          border-color: rgba(33,150,243,0.4);
+          background: rgba(33,150,243,0.1);
+          color: #1565c0;
+        }
+        .action-btn:hover {
+          border-color: rgba(33,150,243,0.6);
+          background: rgba(33,150,243,0.2);
+          color: #0d47a1;
+        }
 
         /* ── Empty ── */
         .empty {
@@ -515,6 +525,7 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
                       <div class="ack-row">
                         <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
+                        ${(n.tap_action_service || n.tap_action_navigation_path || n.tap_action_url_path) ? `<button class="action-btn" data-source="${n.source_id}">${this._getTapActionLabel(n)}</button>` : ""}
                         ${n.type === "manual" ? `<button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button>` : ""}
                       </div>
                       <div class="snooze-row">
@@ -589,6 +600,30 @@ class HaNotificationCenterCard extends HTMLElement {
       };
     });
 
+    this.shadowRoot.querySelectorAll(".action-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const sourceId = btn.dataset.source;
+        const notifItem = this.shadowRoot.querySelector(`.notif-item[data-source="${sourceId}"]`);
+        if (!notifItem || !this._hass) return;
+        const tapAction = notifItem.dataset.tapAction || "more-info";
+        const entity = notifItem.dataset.entity || "";
+        const navPath = notifItem.dataset.tapNavPath || "";
+        const urlPath = notifItem.dataset.tapUrlPath || "";
+        const svcDomain = notifItem.dataset.tapSvcDomain || "";
+        const svc = notifItem.dataset.tapSvc || "";
+        let svcData = {};
+        try { svcData = JSON.parse(notifItem.dataset.tapSvcData || "{}"); } catch (e) {}
+        if (tapAction === "url" && urlPath) {
+          window.open(urlPath, "_blank");
+        } else if (tapAction === "navigate" && navPath) {
+          this._hass.navigatePath(navPath);
+        } else if ((tapAction === "call_service" || tapAction === "more-info") && sourceId && this._hass) {
+          this._hass.callService("ha_notification_center", "execute_tap_action", { source_id: sourceId });
+        }
+      };
+    });
+
     this.shadowRoot.querySelectorAll(".clear-btn").forEach((btn) => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -620,33 +655,15 @@ class HaNotificationCenterCard extends HTMLElement {
     if (!this._bodyClickBound) {
       this._bodyClickBound = true;
       this.shadowRoot.addEventListener("click", (ev) => {
+        // Body/icon click → more-info only (action moved to dedicated button)
         const item = ev.target.closest(".notif-item .body, .notif-item .icon-box, .notif-item .name");
         if (!item) return;
         const notifItem = item.closest(".notif-item");
         if (!notifItem) return;
         ev.stopPropagation();
-        const tapAction = notifItem.dataset.tapAction || "more-info";
         const entity = notifItem.dataset.entity || "";
-        const sourceId = notifItem.dataset.source || "";
-        const navPath = notifItem.dataset.tapNavPath || "";
-        const urlPath = notifItem.dataset.tapUrlPath || "";
-        const svcDomain = notifItem.dataset.tapSvcDomain || "";
-        const svc = notifItem.dataset.tapSvc || "";
-        let svcData = {};
-        try { svcData = JSON.parse(notifItem.dataset.tapSvcData || "{}"); } catch (e) {}
-        if (tapAction === "url" && urlPath) {
-          window.open(urlPath, "_blank");
-        } else if (tapAction === "navigate" && navPath) {
-          this._hass?.navigatePath(navPath);
-        } else if (tapAction === "call_service" && sourceId && this._hass) {
-          this._hass.callService("ha_notification_center", "execute_tap_action", { source_id: sourceId });
-        } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
-          this._hass.callService(svcDomain, svc, svcData);
-        } else {
-          // default: more-info
-          if (entity && this._hass) {
-            this.fireEvent("hass-more-info", { entityId: entity });
-          }
+        if (entity && this._hass) {
+          this.fireEvent("hass-more-info", { entityId: entity });
         }
       });
     }
@@ -661,6 +678,21 @@ class HaNotificationCenterCard extends HTMLElement {
     }
 
     this._lastRenderKey = this._buildRenderKey();
+  }
+
+  _getTapActionLabel(n) {
+    if (n.tap_action_service_domain && n.tap_action_service) {
+      return n.tap_action_service_domain + "." + n.tap_action_service;
+    }
+    if (n.tap_action_service) return n.tap_action_service;
+    if (n.tap_action_url_path) {
+      try {
+        const u = new URL(n.tap_action_url_path.startsWith("http") ? n.tap_action_url_path : "http://" + n.tap_action_url_path);
+        return u.hostname + (u.pathname.length > 12 ? u.pathname.substring(0, 12) + "…" : u.pathname);
+      } catch { return n.tap_action_url_path.length > 15 ? n.tap_action_url_path.substring(0, 15) + "…" : n.tap_action_url_path; }
+    }
+    if (n.tap_action_navigation_path) return "→ " + n.tap_action_navigation_path.split("/").pop();
+    return "執行動作";
   }
 
   _esc(str) {
