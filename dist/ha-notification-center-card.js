@@ -525,7 +525,7 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
                       <div class="ack-row">
                         <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
-                        ${(n.tap_action_service || n.tap_action_navigation_path || n.tap_action_url_path) ? `<button class="action-btn" data-source="${n.source_id}">${this._getTapActionLabel(n)}</button>` : ""}
+                        ${(n.tap_action && n.tap_action !== "more-info") ? `<button class="action-btn" data-source="${n.source_id}">${this._getTapActionLabel(n)}</button>` : ""}
                         ${n.type === "manual" ? `<button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button>` : ""}
                       </div>
                       <div class="snooze-row">
