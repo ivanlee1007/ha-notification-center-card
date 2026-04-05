@@ -363,10 +363,22 @@ class HaNotificationCenterCard extends HTMLElement {
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
+        /* ── Time ── */
+        .notif-time {
+          font-size: 11px;
+          color: var(--secondary-text-color, #9e9e9e);
+          white-space: nowrap;
+          display: block;
+        }
+
         /* ── Actions ── */
         .item-tools {
           flex-shrink: 0;
           align-self: flex-start;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 4px;
         }
         .more-btn {
           padding: 4px 10px;
@@ -499,6 +511,7 @@ class HaNotificationCenterCard extends HTMLElement {
                       ${n.description ? `<div class="desc">${this._esc(n.description)}</div>` : ""}
                     </div>
                     <div class="item-tools">
+                      <span class="notif-time">${n.timestamp ? notificationCardTimeAgo(this._hass, n.timestamp) : ""}</span>
                       <button class="more-btn" data-source="${n.source_id}" aria-expanded="${isActionsOpen ? "true" : "false"}">${t("moreActions")}</button>
                     </div>
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
@@ -829,12 +842,20 @@ class HaNotificationCenterCardEditor extends HTMLElement {
   }
 }
 
-if (!customElements.get("ha-notification-center-card")) {
-  customElements.define("ha-notification-center-card", HaNotificationCenterCard);
+// Remove any previously registered custom element so the latest version always wins
+if (customElements.get("ha-notification-center-card")) {
+  try { customElements.delete("ha-notification-center-card"); } catch(e) {}
+  // Force re-render existing instances
+  document.querySelectorAll("ha-notification-center-card").forEach(el => {
+    if (el._render && el._hass) el._render();
+  });
 }
-if (!customElements.get("ha-notification-center-card-editor")) {
-  customElements.define("ha-notification-center-card-editor", HaNotificationCenterCardEditor);
+customElements.define("ha-notification-center-card", HaNotificationCenterCard);
+
+if (customElements.get("ha-notification-center-card-editor")) {
+  try { customElements.delete("ha-notification-center-card-editor"); } catch(e) {}
 }
+customElements.define("ha-notification-center-card-editor", HaNotificationCenterCardEditor);
 
 window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === "custom:ha-notification-center-card")) {
