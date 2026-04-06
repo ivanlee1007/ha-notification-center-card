@@ -18,6 +18,7 @@ const NOTIFICATION_CARD_I18N = {
     ackTitle: "Acknowledge",
     snoozeTitle: "Snooze",
     moreActions: "More actions",
+    moreInfo: "More Info",
     clear: "Clear",
     now: "now",
     minutesAgo: (n) => `${n}m`,
@@ -38,6 +39,7 @@ const NOTIFICATION_CARD_I18N = {
     ackTitle: "確認",
     snoozeTitle: "稍後提醒",
     moreActions: "更多操作",
+    moreInfo: "更多資訊",
     clear: "清除",
     now: "剛剛",
     minutesAgo: (n) => `${n} 分鐘前`,
@@ -552,7 +554,7 @@ class HaNotificationCenterCard extends HTMLElement {
                       ${(n.tap_action && n.tap_action !== "more-info") ? `<div class="action-detail-row">
                         <div class="action-detail-text">${this._getActionDetailText(n)}</div>
                         <button class="action-btn" data-source="${n.source_id}">執行</button>
-                      </div>` : ""}
+                      </div>` : `<button class="more-info-btn" data-source="${n.source_id}" data-entity="${n.tap_action_entity || ""}">${t("moreInfo")}</button>`}
                       <div class="snooze-row">
                         <span class="snooze-label">${t("snooze")}</span>
                         <div class="snooze-actions">
@@ -645,6 +647,17 @@ class HaNotificationCenterCard extends HTMLElement {
           this._hass.navigatePath(navPath);
         } else if ((tapAction === "call_service" || tapAction === "more-info") && sourceId && this._hass) {
           this._hass.callService("ha_notification_center", "execute_tap_action", { source_id: sourceId });
+        }
+      };
+    });
+
+    this.shadowRoot.querySelectorAll(".more-info-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const sourceId = btn.dataset.source;
+        const entityId = btn.dataset.entity || "";
+        if (entityId && this._hass) {
+          this.fireEvent("hass-more-info", { entityId: entityId });
         }
       };
     });
@@ -748,6 +761,17 @@ class HaNotificationCenterCard extends HTMLElement {
     el.textContent = str;
     return el.innerHTML;
   }
+
+  fireEvent(type, detail, options) {
+    const event = new Event(type, {
+      bubbles: options?.bubbles ?? true,
+      cancelable: options?.cancelable ?? true,
+      composed: options?.composed ?? true
+    });
+    event.detail = detail;
+    this.dispatchEvent(event);
+  }
+
 }
 
 class HaNotificationCenterCardEditor extends HTMLElement {
@@ -1058,7 +1082,7 @@ class NotificationChipCard extends HTMLElement {
     this._render();
   }
 
-  _handleChipClick() {
+  _handleChipClick() { 
     this._dropdownOpen = !this._dropdownOpen;
     if (!this._dropdownOpen) this._expandedActions = null;
     this._render();
@@ -1370,6 +1394,16 @@ class NotificationChipCard extends HTMLElement {
 
   _timeAgo(ts) {
     return notificationCardTimeAgo(this._hass, ts);
+  }
+
+  fireEvent(type, detail, options) {
+    const event = new Event(type, {
+      bubbles: options?.bubbles ?? true,
+      cancelable: options?.cancelable ?? true,
+      composed: options?.composed ?? true
+    });
+    event.detail = detail;
+    this.dispatchEvent(event);
   }
 
   _render() {
