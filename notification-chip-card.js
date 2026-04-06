@@ -315,12 +315,16 @@ class NotificationChipCard extends HTMLElement {
             </div>
           </div>
           <div class="more-panel" style="display:${isActionsOpen ? "flex" : "none"}">
-            <button class="ack-action-btn" data-source="${item.source_id}" ${isAcked ? "disabled" : ""}>${isAcked ? t("acknowledged") : t("acknowledge")}</button>
-            ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}">${t("clear")}</button>` : ""}
-            <button data-hours="1" data-source="${item.source_id}">1h</button>
-            <button data-hours="4" data-source="${item.source_id}">4h</button>
-            <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
-            <button data-hours="48" data-source="${item.source_id}">${t("dayAfter")}</button>
+            <div class="ack-row">
+              <button class="ack-action-btn" data-source="${item.source_id}" ${isAcked ? "disabled" : ""}>${isAcked ? t("acknowledged") : t("acknowledge")}</button>
+              ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}">${t("clear")}</button>` : ""}
+            </div>
+            <div class="snooze-row">
+              <button data-hours="1" data-source="${item.source_id}">1h</button>
+              <button data-hours="4" data-source="${item.source_id}">4h</button>
+              <button data-hours="24" data-source="${item.source_id}">${t("tomorrow")}</button>
+              <button data-hours="48" data-source="${item.source_id}">${t("dayAfter")}</button>
+            </div>
           </div>
         </div>`;
     });
@@ -442,10 +446,18 @@ class NotificationChipCard extends HTMLElement {
 
         /* More actions panel */
         .more-panel {
-          display: flex; gap: 4px; padding: 6px 10px 8px 46px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 6px 10px 8px 46px;
           background: rgba(0,0,0,0.02);
           border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+        }
+        .ack-row, .snooze-row {
+          display: flex;
+          gap: 4px;
           flex-wrap: wrap;
+          align-items: center;
         }
         .more-panel button {
           border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
