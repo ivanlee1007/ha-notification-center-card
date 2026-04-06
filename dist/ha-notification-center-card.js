@@ -409,6 +409,8 @@ class HaNotificationCenterCard extends HTMLElement {
         .ack-row {
           display: flex;
           align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
         }
         .snooze-row {
           display: flex;
@@ -431,7 +433,7 @@ class HaNotificationCenterCard extends HTMLElement {
           flex: 1 1 220px;
           min-width: 0;
         }
-        .snooze-btn, .ack-btn, .clear-btn, .action-btn {
+        .snooze-btn, .ack-btn, .clear-btn, .action-btn, .more-info-btn {
           padding: 3px 10px;
           border-radius: 14px;
           border: 1px solid rgba(0,0,0,0.08);
@@ -443,7 +445,7 @@ class HaNotificationCenterCard extends HTMLElement {
           white-space: nowrap;
           box-shadow: none;
         }
-        .snooze-btn:hover, .ack-btn:hover, .clear-btn:hover {
+        .snooze-btn:hover, .ack-btn:hover, .clear-btn:hover, .more-info-btn:hover {
           background: rgba(255,255,255,0.8);
           border-color: rgba(0,0,0,0.12);
           color: var(--primary-text-color, #212121);
@@ -469,9 +471,9 @@ class HaNotificationCenterCard extends HTMLElement {
           background: rgba(244, 67, 54, 0.08);
           color: #b71c1c;
         }
-        .action-btn {
-          border-color: rgba(33,150,243,0.4);
-          background: rgba(33,150,243,0.1);
+        .action-btn, .more-info-btn {
+          border-color: rgba(33,150,243,0.18);
+          background: rgba(33,150,243,0.05);
           color: #1565c0;
         }
         .action-btn:hover {
@@ -549,12 +551,13 @@ class HaNotificationCenterCard extends HTMLElement {
                     <div class="more-panel" style="display:${isActionsOpen ? "grid" : "none"}">
                       <div class="ack-row">
                         <button class="ack-btn" data-source="${n.source_id}" ${n.acknowledged ? "disabled" : ""}>${n.acknowledged ? t("acknowledged") : t("acknowledge")}</button>
+                        ${(!(n.tap_action && n.tap_action !== "more-info")) ? `<button class="more-info-btn" data-source="${n.source_id}" data-entity="${n.tap_action_entity || ""}">${t("moreInfo")}</button>` : ""}
                         ${n.type === "manual" ? `<button class="clear-btn" data-source="${n.source_id}">${t("clear")}</button>` : ""}
                       </div>
                       ${(n.tap_action && n.tap_action !== "more-info") ? `<div class="action-detail-row">
                         <div class="action-detail-text">${this._getActionDetailText(n)}</div>
                         <button class="action-btn" data-source="${n.source_id}">執行</button>
-                      </div>` : `<button class="more-info-btn" data-source="${n.source_id}" data-entity="${n.tap_action_entity || ""}">${t("moreInfo")}</button>`}
+                      </div>` : ""}
                       <div class="snooze-row">
                         <span class="snooze-label">${t("snooze")}</span>
                         <div class="snooze-actions">
