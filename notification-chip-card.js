@@ -208,9 +208,17 @@ class NotificationChipCard extends HTMLElement {
   }
 
   _handleTap(el) {
-    const tapAction = el.dataset.tapAction || "more-info";
     const eid = el.dataset.entity || "";
-    const sourceId = el.dataset.source || el.closest(".notif-item")?.dataset.source || "";
+    if (eid && this._hass) {
+      this.fireEvent("hass-more-info", { entityId: eid });
+    }
+  }
+
+  _handleAction(sourceId, e) {
+    e.stopPropagation();
+    const el = this.shadowRoot.querySelector(`.notif-content[data-source="${sourceId}"]`);
+    if (!el || !this._hass) return;
+    const tapAction = el.dataset.tapAction || "more-info";
     const navPath = el.dataset.tapNavPath || "";
     const urlPath = el.dataset.tapUrlPath || "";
     const svcDomain = el.dataset.tapSvcDomain || "";
@@ -226,12 +234,23 @@ class NotificationChipCard extends HTMLElement {
       this._hass.callService("ha_notification_center", "execute_tap_action", { source_id: sourceId });
     } else if (tapAction === "call_service" && svcDomain && svc && this._hass) {
       this._hass.callService(svcDomain, svc, svcData);
-    } else {
-      // default: more-info
-      if (eid && this._hass) {
-        this.fireEvent("hass-more-info", { entityId: eid });
-      }
     }
+  }
+
+  _getActionDetailText(item) {
+    if (item.tap_action === "call_service") {
+      const actionName = item.tap_action_service || item.tap_action_service_domain || "service";
+      return `<span class="action-type">類型: 執行服務</span> 動作: ${actionName}`;
+    }
+    if (item.tap_action === "url") {
+      const url = item.tap_action_url_path || "-";
+      return `<span class="action-type">類型: 開啟連結</span> 網址: ${url}`;
+    }
+    if (item.tap_action === "navigate") {
+      const path = item.tap_action_navigation_path || "-";
+      return `<span class="action-type">類型: 導航</span> 路徑: ${path}`;
+    }
+    return `<span class="action-type">類型: 更多資訊</span>`;
   }
 
   fireEvent(type, detail, options) {
@@ -317,8 +336,10 @@ class NotificationChipCard extends HTMLElement {
           <div class="more-panel" style="display:${isActionsOpen ? "flex" : "none"}">
             <div class="ack-row">
               <button class="ack-action-btn" data-source="${item.source_id}" ${isAcked ? "disabled" : ""}>${isAcked ? t("acknowledged") : t("acknowledge")}</button>
+              ${(!(item.tap_action && item.tap_action !== "more-info")) ? `<button class="more-info-btn" data-source="${item.source_id}" data-entity="${eid}">${t("moreInfo")}</button>` : ""}
               ${item.type === "manual" ? `<button class="clear-btn" data-source="${item.source_id}">${t("clear")}</button>` : ""}
             </div>
+            ${(item.tap_action && item.tap_action !== "more-info") ? `<div class="action-detail-row"><div class="action-detail-text">${this._getActionDetailText(item)}</div><button class="action-btn" data-source="${item.source_id}">執行</button></div>` : ""}
             <div class="snooze-row">
               <button data-hours="1" data-source="${item.source_id}">1h</button>
               <button data-hours="4" data-source="${item.source_id}">4h</button>
@@ -459,6 +480,23 @@ class NotificationChipCard extends HTMLElement {
           flex-wrap: wrap;
           align-items: center;
         }
+        .action-detail-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          align-items: center;
+        }
+        .action-detail-text {
+          min-width: 0;
+          font-size: 11px;
+          color: var(--secondary-text-color, #757575);
+          line-height: 1.35;
+        }
+        .action-detail-text .action-type {
+          color: var(--primary-text-color, #212121);
+          font-weight: 600;
+          margin-right: 6px;
+        }
         .more-panel button {
           border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
           border-radius: 8px; background: var(--card-background-color, #fff);
@@ -480,6 +518,16 @@ class NotificationChipCard extends HTMLElement {
         .ack-action-btn[disabled] {
           opacity: 0.55;
           cursor: default;
+        }
+        .action-btn, .more-info-btn {
+          border-color: rgba(33,150,243,0.18) !important;
+          color: #1565c0 !important;
+          background: rgba(33,150,243,0.06) !important;
+        }
+        .action-btn:hover, .more-info-btn:hover {
+          border-color: rgba(33,150,243,0.28) !important;
+          background: rgba(33,150,243,0.14) !important;
+          color: #0d47a1 !important;
         }
         .clear-btn {
           border-color: rgba(244,67,54,0.18) !important;
@@ -532,7 +580,7 @@ class NotificationChipCard extends HTMLElement {
     this._clickOutsideHandler = (e) => this._handleClickOutside(e);
     setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 100);
 
-    // Tap notification → action (event delegation, survives DOM rebuilds)
+    // Tap notification body/icon → more-info only (event delegation, survives DOM rebuilds)
     if (!this._tapDelegationBound) {
       this._tapDelegationBound = true;
       this.shadowRoot.addEventListener("click", (ev) => {
@@ -555,6 +603,24 @@ class NotificationChipCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".ack-action-btn").forEach(el => {
       el.addEventListener("click", (e) => {
         this._handleAcknowledge(el.dataset.source, e);
+      });
+    });
+
+    // Explicit action buttons
+    this.shadowRoot.querySelectorAll(".action-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        this._handleAction(el.dataset.source, e);
+      });
+    });
+
+    // Explicit more-info buttons
+    this.shadowRoot.querySelectorAll(".more-info-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const entityId = el.dataset.entity || "";
+        if (entityId && this._hass) {
+          this.fireEvent("hass-more-info", { entityId });
+        }
       });
     });
 
