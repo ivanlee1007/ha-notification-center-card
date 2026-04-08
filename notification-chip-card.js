@@ -165,10 +165,15 @@ class NotificationChipCard extends HTMLElement {
     dropdown.style.right = "auto";
 
     const margin = 8;
+    const viewportWidth = Math.max(document.documentElement?.clientWidth || 0, window.innerWidth || 0);
+    const targetWidth = Math.min(360, Math.max(220, viewportWidth - margin * 2));
+    dropdown.style.width = `${Math.round(targetWidth)}px`;
+    dropdown.style.maxWidth = `${Math.round(targetWidth)}px`;
+
     const hostRect = this.getBoundingClientRect();
     const chipRect = chip.getBoundingClientRect();
     const dropdownRect = dropdown.getBoundingClientRect();
-    const maxLeft = Math.max(margin, window.innerWidth - dropdownRect.width - margin);
+    const maxLeft = Math.max(margin, viewportWidth - dropdownRect.width - margin);
     const desiredLeft = chipRect.left;
     const clampedLeft = Math.min(Math.max(desiredLeft, margin), maxLeft);
     const offsetLeft = clampedLeft - hostRect.left;
