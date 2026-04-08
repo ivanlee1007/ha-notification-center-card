@@ -1070,14 +1070,24 @@ class NotificationChipCard extends HTMLElement {
 
   _positionDropdown() {
     const dropdown = this.shadowRoot?.getElementById("dropdown");
-    if (!dropdown || getComputedStyle(dropdown).display === "none") return;
+    const chip = this.shadowRoot?.getElementById("chip");
+    if (!dropdown || !chip || getComputedStyle(dropdown).display === "none") return;
 
     dropdown.classList.remove("align-right");
-    const rect = dropdown.getBoundingClientRect();
+    dropdown.style.left = "0px";
+    dropdown.style.right = "auto";
+
     const margin = 8;
-    if (rect.right > window.innerWidth - margin) {
-      dropdown.classList.add("align-right");
-    }
+    const hostRect = this.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const dropdownRect = dropdown.getBoundingClientRect();
+    const maxLeft = Math.max(margin, window.innerWidth - dropdownRect.width - margin);
+    const desiredLeft = chipRect.left;
+    const clampedLeft = Math.min(Math.max(desiredLeft, margin), maxLeft);
+    const offsetLeft = clampedLeft - hostRect.left;
+
+    dropdown.style.left = `${Math.round(offsetLeft)}px`;
+    dropdown.style.right = "auto";
   }
 
   _toggleActions(sourceId) {
