@@ -259,20 +259,15 @@ class HaNotificationCenterCard extends HTMLElement {
 
         /* ══ Header ══ */
         .header {
-          display: flex;
-          justify-content: space-between;
+          display: grid;
+          grid-template-columns: max-content minmax(0, 1fr) auto;
           align-items: flex-start;
           gap: 12px;
           margin-bottom: 16px;
         }
-        .header-left { flex: 1 1 auto; min-width: max-content; }
+        .header-left { min-width: max-content; }
         .header-actions {
-          display: flex;
-          align-items: flex-start;
-          justify-content: flex-end;
-          gap: 10px;
-          flex: 1 1 auto;
-          min-width: 0;
+          display: contents;
         }
         .title {
           font-size: 14px;
@@ -350,17 +345,33 @@ class HaNotificationCenterCard extends HTMLElement {
 
 
         .panel-controls {
-          display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: nowrap;
+          min-width: 0;
+          overflow: hidden;
         }
         .panel-controls button, .auto-clear-save-btn {
-          padding: 5px 12px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
+          padding: 5px 10px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
           background: rgba(255,255,255,0.62); color: var(--primary-text-color, #212121);
           font-size: 11px; font-weight: 600; cursor: pointer;
+          white-space: nowrap;
+          min-width: max-content;
         }
-        @media (max-width: 520px) {
-          .header { flex-wrap: wrap; }
-          .header-actions { width: 100%; flex-basis: 100%; }
-          .panel-controls { flex: 1 1 auto; justify-content: flex-start; }
+        @media (max-width: 640px) {
+          .header {
+            grid-template-columns: max-content auto;
+          }
+          .panel-controls {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            justify-content: flex-start;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .panel-controls::-webkit-scrollbar { display: none; }
+          .bell-btn { grid-column: 2; grid-row: 1; justify-self: end; }
         }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel {
