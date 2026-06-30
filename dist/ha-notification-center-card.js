@@ -260,9 +260,10 @@ class HaNotificationCenterCard extends HTMLElement {
         /* ══ Header ══ */
         .header {
           display: grid;
-          grid-template-columns: max-content minmax(0, 1fr) auto;
+          grid-template-columns: max-content max-content auto;
+          justify-content: space-between;
           align-items: flex-start;
-          gap: 12px;
+          gap: 10px;
           margin-bottom: 16px;
         }
         .header-left { min-width: max-content; }
@@ -349,8 +350,8 @@ class HaNotificationCenterCard extends HTMLElement {
           justify-content: flex-end;
           gap: 8px;
           flex-wrap: nowrap;
-          min-width: 0;
-          overflow: hidden;
+          min-width: max-content;
+          overflow: visible;
         }
         .panel-controls button, .auto-clear-save-btn {
           padding: 5px 10px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
@@ -358,20 +359,6 @@ class HaNotificationCenterCard extends HTMLElement {
           font-size: 11px; font-weight: 600; cursor: pointer;
           white-space: nowrap;
           min-width: max-content;
-        }
-        @media (max-width: 640px) {
-          .header {
-            grid-template-columns: max-content auto;
-          }
-          .panel-controls {
-            grid-column: 1 / -1;
-            grid-row: 2;
-            justify-content: flex-start;
-            overflow-x: auto;
-            scrollbar-width: none;
-          }
-          .panel-controls::-webkit-scrollbar { display: none; }
-          .bell-btn { grid-column: 2; grid-row: 1; justify-self: end; }
         }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel {
