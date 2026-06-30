@@ -265,12 +265,14 @@ class HaNotificationCenterCard extends HTMLElement {
           gap: 12px;
           margin-bottom: 16px;
         }
-        .header-left { flex: 1; min-width: 0; }
+        .header-left { flex: 1 1 auto; min-width: max-content; }
         .header-actions {
           display: flex;
           align-items: flex-start;
+          justify-content: flex-end;
           gap: 10px;
-          flex: 0 0 auto;
+          flex: 1 1 auto;
+          min-width: 0;
         }
         .title {
           font-size: 14px;
@@ -280,12 +282,13 @@ class HaNotificationCenterCard extends HTMLElement {
           color: var(--primary-text-color, #212121);
           margin-bottom: 10px;
         }
-        .legend { display: flex; gap: 14px; }
+        .legend { display: flex; gap: 14px; flex-wrap: nowrap; white-space: nowrap; }
         .legend-item {
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 5px;
           font-size: 11px;
+          white-space: nowrap;
           font-weight: 500;
           color: var(--secondary-text-color, #727272);
         }
@@ -353,6 +356,11 @@ class HaNotificationCenterCard extends HTMLElement {
           padding: 5px 12px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
           background: rgba(255,255,255,0.62); color: var(--primary-text-color, #212121);
           font-size: 11px; font-weight: 600; cursor: pointer;
+        }
+        @media (max-width: 520px) {
+          .header { flex-wrap: wrap; }
+          .header-actions { width: 100%; flex-basis: 100%; }
+          .panel-controls { flex: 1 1 auto; justify-content: flex-start; }
         }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel {
