@@ -20,6 +20,15 @@ const NOTIFICATION_CARD_I18N = {
     moreActions: "More actions",
     moreInfo: "More Info",
     clear: "Clear",
+    clearAll: "Clear all alerts",
+    autoClearSettings: "Auto-clear settings",
+    infoAutoClear: "Info",
+    warningAutoClear: "Warning",
+    criticalAutoClear: "Critical",
+    seconds: "seconds",
+    zeroDisables: "0 disables auto-clear",
+    save: "Save",
+    saved: "Saved",
     now: "now",
     minutesAgo: (n) => `${n}m`,
     hoursAgo: (n) => `${n}h`,
@@ -41,6 +50,15 @@ const NOTIFICATION_CARD_I18N = {
     moreActions: "更多操作",
     moreInfo: "更多資訊",
     clear: "清除",
+    clearAll: "清除所有告警",
+    autoClearSettings: "自動消失設定",
+    infoAutoClear: "資訊",
+    warningAutoClear: "警告",
+    criticalAutoClear: "緊急",
+    seconds: "秒",
+    zeroDisables: "0 表示不自動消失",
+    save: "儲存",
+    saved: "已儲存",
     now: "剛剛",
     minutesAgo: (n) => `${n} 分鐘前`,
     hoursAgo: (n) => `${n} 小時前`,
@@ -59,6 +77,23 @@ function getNotificationCardLang(hass) {
 function notificationCardT(hass, key) {
   const lang = getNotificationCardLang(hass);
   return NOTIFICATION_CARD_I18N[lang]?.[key] ?? NOTIFICATION_CARD_I18N.en[key] ?? key;
+}
+
+
+function notificationCardAutoClearDefaults(hass, entityId = "sensor.notification_feed") {
+  const attrs = hass?.states?.[entityId]?.attributes || {};
+  const defaults = attrs.auto_clear_defaults || {};
+  return {
+    info: Number(defaults.info ?? 3600),
+    warning: Number(defaults.warning ?? 0),
+    critical: Number(defaults.critical ?? 0),
+  };
+}
+
+function notificationCardClampSeconds(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return 0;
+  return Math.min(Math.max(parsed, 0), 604800);
 }
 
 function notificationCardTimeAgo(hass, ts) {
@@ -303,6 +338,26 @@ class HaNotificationCenterCard extends HTMLElement {
         .panel { margin-top: 16px; }
         
 
+
+        .panel-controls {
+          display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+        }
+        .panel-controls button, .auto-clear-save-btn {
+          padding: 5px 12px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
+          background: rgba(255,255,255,0.62); color: var(--primary-text-color, #212121);
+          font-size: 11px; font-weight: 600; cursor: pointer;
+        }
+        .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
+        .auto-clear-panel {
+          display: grid; gap: 8px; padding: 12px; margin-bottom: 10px; border-radius: 14px;
+          background: var(--secondary-background-color, rgba(127,127,127,0.08));
+        }
+        .auto-clear-title { font-size: 12px; font-weight: 700; color: var(--primary-text-color, #212121); }
+        .auto-clear-panel label { display: grid; grid-template-columns: 72px minmax(80px, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: var(--secondary-text-color, #727272); }
+        .auto-clear-input { box-sizing: border-box; width: 100%; padding: 5px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.12); background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); }
+        .auto-clear-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--secondary-text-color, #727272); }
+        .auto-clear-saved { font-size: 11px; color: #2e7d32; font-weight: 600; }
+
         /* ══ Notification List ══ */
         .notif-list {
           max-height: 420px;
@@ -531,6 +586,8 @@ class HaNotificationCenterCard extends HTMLElement {
         </div>
 
         <div class="panel" id="panel" style="display:${(this._config.show_panel !== false && (dropdownOpen || this._config.always_expand === true) ? "block" : "none")}">
+          ${this._renderPanelControls(count, t)}
+          ${this._autoClearSettingsOpen ? this._renderAutoClearSettingsPanel(feed, t) : ""}
           ${count === 0
             ? `<div class="empty">${t("noNotifications")}</div>`
             : `<div class="notif-list">${items.map(n => {
@@ -609,6 +666,31 @@ class HaNotificationCenterCard extends HTMLElement {
       }
     };
     setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 0);
+
+    this.shadowRoot.querySelectorAll(".clear-all-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this._hass.callService("ha_notification_center", "clear_all_notifications", {});
+        this._expandedActions = null;
+        this._render();
+      };
+    });
+
+    this.shadowRoot.querySelectorAll(".auto-clear-settings-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this._autoClearSettingsOpen = !this._autoClearSettingsOpen;
+        this._autoClearSaved = false;
+        this._render();
+      };
+    });
+
+    this.shadowRoot.querySelectorAll(".auto-clear-save-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        this._saveAutoClearDefaults();
+      };
+    });
 
     this.shadowRoot.querySelectorAll(".more-btn").forEach((btn) => {
       btn.onclick = (e) => {
@@ -719,6 +801,44 @@ class HaNotificationCenterCard extends HTMLElement {
     }
 
     this._lastRenderKey = this._buildRenderKey();
+  }
+
+
+  _renderPanelControls(count, t) {
+    return `
+      <div class="panel-controls">
+        <button class="auto-clear-settings-btn" type="button">${t("autoClearSettings")}</button>
+        ${count > 0 ? `<button class="clear-all-btn" type="button">${t("clearAll")}</button>` : ""}
+      </div>
+    `;
+  }
+
+  _renderAutoClearSettingsPanel(feed, t) {
+    const defaults = notificationCardAutoClearDefaults(this._hass, this._config.entity);
+    return `
+      <div class="auto-clear-panel">
+        <div class="auto-clear-title">${t("autoClearSettings")}</div>
+        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="604800" step="1" value="${defaults.info}"><span>${t("seconds")}</span></label>
+        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="604800" step="1" value="${defaults.warning}"><span>${t("seconds")}</span></label>
+        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="604800" step="1" value="${defaults.critical}"><span>${t("seconds")}</span></label>
+        <div class="auto-clear-footer"><span>${t("zeroDisables")}</span><button class="auto-clear-save-btn" type="button">${t("save")}</button></div>
+        ${this._autoClearSaved ? `<div class="auto-clear-saved">${t("saved")}</div>` : ""}
+      </div>
+    `;
+  }
+
+  _saveAutoClearDefaults() {
+    const values = { info: 0, warning: 0, critical: 0 };
+    this.shadowRoot.querySelectorAll(".auto-clear-input").forEach((input) => {
+      values[input.dataset.priority] = notificationCardClampSeconds(input.value);
+    });
+    this._hass.callService("ha_notification_center", "set_auto_clear_defaults", {
+      info_seconds: values.info,
+      warning_seconds: values.warning,
+      critical_seconds: values.critical,
+    });
+    this._autoClearSaved = true;
+    this._render();
   }
 
   _getActionDetailText(n) {
@@ -1181,6 +1301,35 @@ class NotificationChipCard extends HTMLElement {
     return `<span class="action-type">類型: 更多資訊</span>`;
   }
 
+
+  _renderChipControls(count, t) {
+    return `<div class="chip-controls"><button class="auto-clear-settings-btn" type="button">${t("autoClearSettings")}</button>${count > 0 ? `<button class="clear-all-btn" type="button">${t("clearAll")}</button>` : ""}</div>`;
+  }
+
+  _renderAutoClearSettingsPanel(t) {
+    const defaults = notificationCardAutoClearDefaults(this._hass, this._config.entity || "sensor.notification_feed");
+    return `
+      <div class="auto-clear-panel">
+        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="604800" step="1" value="${defaults.info}"><span>${t("seconds")}</span></label>
+        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="604800" step="1" value="${defaults.warning}"><span>${t("seconds")}</span></label>
+        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="604800" step="1" value="${defaults.critical}"><span>${t("seconds")}</span></label>
+        <div class="auto-clear-footer"><span>${t("zeroDisables")}</span><button class="auto-clear-save-btn" type="button">${t("save")}</button></div>
+        ${this._autoClearSaved ? `<div class="auto-clear-saved">${t("saved")}</div>` : ""}
+      </div>`;
+  }
+
+  _saveAutoClearDefaults() {
+    const values = { info: 0, warning: 0, critical: 0 };
+    this.shadowRoot.querySelectorAll(".auto-clear-input").forEach((input) => {
+      values[input.dataset.priority] = notificationCardClampSeconds(input.value);
+    });
+    this._hass.callService("ha_notification_center", "set_auto_clear_defaults", {
+      info_seconds: values.info, warning_seconds: values.warning, critical_seconds: values.critical,
+    });
+    this._autoClearSaved = true;
+    this._render();
+  }
+
   render() {
     if (!this._hass || !this._config) return "";
     const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
@@ -1268,7 +1417,7 @@ class NotificationChipCard extends HTMLElement {
         </div>`;
     });
 
-    const dropdownVisible = dropdownOpen && count > 0;
+    const dropdownVisible = dropdownOpen;
     const emptyState = dropdownOpen && count === 0
       ? `<div class="empty-state"><ha-icon icon="mdi:bell-check-outline"></ha-icon><span>${t("noNotifications")}</span></div>`
       : "";
@@ -1331,6 +1480,16 @@ class NotificationChipCard extends HTMLElement {
         }
         .dropdown::-webkit-scrollbar { width: 4px; }
         .dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+
+        .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 4px; flex-wrap: wrap; }
+        .chip-controls button, .auto-clear-save-btn { border: 1px solid var(--divider-color, rgba(0,0,0,0.12)); border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; }
+        .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
+        .auto-clear-panel { display: grid; gap: 6px; padding: 8px; margin-bottom: 6px; border-radius: 10px; background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
+        .auto-clear-panel label { display: grid; grid-template-columns: 52px minmax(70px, 1fr) auto; align-items: center; gap: 6px; font-size: 11px; color: var(--secondary-text-color, #757575); }
+        .auto-clear-input { box-sizing: border-box; width: 100%; padding: 4px 6px; border-radius: 7px; border: 1px solid rgba(0,0,0,0.12); background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); }
+        .auto-clear-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 10px; color: var(--secondary-text-color, #757575); }
+        .auto-clear-saved { font-size: 10px; color: #2e7d32; font-weight: 600; }
 
         /* Legend */
         .legend-bar {
@@ -1475,6 +1634,8 @@ class NotificationChipCard extends HTMLElement {
 
       <div class="dropdown" id="dropdown">
         ${count > 0 ? `<div class="legend-bar"><div class="legend-items">${legend}</div></div>` : ""}
+        ${this._renderChipControls(count, t)}
+        ${this._autoClearSettingsOpen ? this._renderAutoClearSettingsPanel(t) : ""}
         ${itemsHtml}
         ${emptyState}
       </div>
@@ -1507,6 +1668,31 @@ class NotificationChipCard extends HTMLElement {
     }
     this._clickOutsideHandler = (e) => this._handleClickOutside(e);
     setTimeout(() => document.addEventListener("click", this._clickOutsideHandler, true), 100);
+
+    this.shadowRoot.querySelectorAll(".clear-all-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._hass.callService("ha_notification_center", "clear_all_notifications", {});
+        this._expandedActions = null;
+        this._render();
+      });
+    });
+
+    this.shadowRoot.querySelectorAll(".auto-clear-settings-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._autoClearSettingsOpen = !this._autoClearSettingsOpen;
+        this._autoClearSaved = false;
+        this._render();
+      });
+    });
+
+    this.shadowRoot.querySelectorAll(".auto-clear-save-btn").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._saveAutoClearDefaults();
+      });
+    });
 
     // Tap notification body/icon → more-info only
     this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
