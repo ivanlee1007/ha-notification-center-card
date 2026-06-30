@@ -315,7 +315,7 @@ class NotificationChipCard extends HTMLElement {
 
 
   _renderChipControls(count, t) {
-    return `<div class="chip-controls"><button class="auto-clear-settings-btn" type="button">${t("autoClearSettings")}</button>${count > 0 ? `<button class="clear-all-btn" type="button">${t("clearAll")}</button>` : ""}</div>`;
+    return `<div class="chip-controls"><button class="auto-clear-settings-btn icon-control-btn" type="button" title="${t("autoClearSettings")}" aria-label="${t("autoClearSettings")}"><ha-icon icon="mdi:timer-cog-outline"></ha-icon></button>${count > 0 ? `<button class="clear-all-btn icon-control-btn" type="button" title="${t("clearAll")}" aria-label="${t("clearAll")}"><ha-icon icon="mdi:bell-remove-outline"></ha-icon></button>` : ""}</div>`;
   }
 
   _renderAutoClearSettingsPanel(t) {
@@ -496,6 +496,8 @@ class NotificationChipCard extends HTMLElement {
 
         .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 0; flex-wrap: wrap; }
         .chip-controls button, .auto-clear-save-btn { border: 1px solid var(--divider-color, rgba(0,0,0,0.12)); border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; }
+        .chip-controls .icon-control-btn { width: 28px; height: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .chip-controls .icon-control-btn ha-icon { --mdc-icon-size: 16px; }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel { display: grid; gap: 6px; padding: 8px; margin-bottom: 6px; border-radius: 10px; background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
         .auto-clear-panel label { display: grid; grid-template-columns: 52px minmax(70px, 1fr) auto; align-items: center; gap: 6px; font-size: 11px; color: var(--secondary-text-color, #757575); }
