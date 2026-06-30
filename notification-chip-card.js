@@ -494,7 +494,7 @@ class NotificationChipCard extends HTMLElement {
         .dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
 
 
-        .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 4px; flex-wrap: wrap; }
+        .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 0; flex-wrap: wrap; }
         .chip-controls button, .auto-clear-save-btn { border: 1px solid var(--divider-color, rgba(0,0,0,0.12)); border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel { display: grid; gap: 6px; padding: 8px; margin-bottom: 6px; border-radius: 10px; background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
@@ -645,8 +645,10 @@ class NotificationChipCard extends HTMLElement {
       </div>
 
       <div class="dropdown" id="dropdown">
-        ${count > 0 ? `<div class="legend-bar"><div class="legend-items">${legend}</div></div>` : ""}
-        ${this._renderChipControls(count, t)}
+        <div class="legend-bar">
+          <div class="legend-items">${legend}</div>
+          ${this._renderChipControls(count, t)}
+        </div>
         ${this._autoClearSettingsOpen ? this._renderAutoClearSettingsPanel(t) : ""}
         ${itemsHtml}
         ${emptyState}

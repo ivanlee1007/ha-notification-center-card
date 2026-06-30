@@ -262,9 +262,16 @@ class HaNotificationCenterCard extends HTMLElement {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
+          gap: 12px;
           margin-bottom: 16px;
         }
-        .header-left { flex: 1; }
+        .header-left { flex: 1; min-width: 0; }
+        .header-actions {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          flex: 0 0 auto;
+        }
         .title {
           font-size: 14px;
           font-weight: 700;
@@ -340,7 +347,7 @@ class HaNotificationCenterCard extends HTMLElement {
 
 
         .panel-controls {
-          display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+          display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
         }
         .panel-controls button, .auto-clear-save-btn {
           padding: 5px 12px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.10);
@@ -578,15 +585,17 @@ class HaNotificationCenterCard extends HTMLElement {
               <div class="legend-item"><div class="legend-dot info"></div>${t("info")}</div>
             </div>
           </div>
-          <div class="bell-btn ${isCritical ? "critical" : ""}" id="bell">
-            <ha-icon icon="${isCritical ? "mdi:alert-circle" : "mdi:bell"}"></ha-icon>
-            ${hasButtonLabel ? `<span class="bell-label">${this._esc(buttonLabel)}</span>` : ""}
-            ${count > 0 ? `<div class="bell-badge">${count}</div>` : ""}
+          <div class="header-actions">
+            ${this._renderPanelControls(count, t)}
+            <div class="bell-btn ${isCritical ? "critical" : ""}" id="bell">
+              <ha-icon icon="${isCritical ? "mdi:alert-circle" : "mdi:bell"}"></ha-icon>
+              ${hasButtonLabel ? `<span class="bell-label">${this._esc(buttonLabel)}</span>` : ""}
+              ${count > 0 ? `<div class="bell-badge">${count}</div>` : ""}
+            </div>
           </div>
         </div>
 
         <div class="panel" id="panel" style="display:${(this._config.show_panel !== false && (dropdownOpen || this._config.always_expand === true) ? "block" : "none")}">
-          ${this._renderPanelControls(count, t)}
           ${this._autoClearSettingsOpen ? this._renderAutoClearSettingsPanel(feed, t) : ""}
           ${count === 0
             ? `<div class="empty">${t("noNotifications")}</div>`
@@ -1482,7 +1491,7 @@ class NotificationChipCard extends HTMLElement {
         .dropdown::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
 
 
-        .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 4px; flex-wrap: wrap; }
+        .chip-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 0; flex-wrap: wrap; }
         .chip-controls button, .auto-clear-save-btn { border: 1px solid var(--divider-color, rgba(0,0,0,0.12)); border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer; }
         .clear-all-btn { color: #c62828 !important; border-color: rgba(244,67,54,0.18) !important; background: rgba(244,67,54,0.05) !important; }
         .auto-clear-panel { display: grid; gap: 6px; padding: 8px; margin-bottom: 6px; border-radius: 10px; background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
@@ -1633,8 +1642,10 @@ class NotificationChipCard extends HTMLElement {
       </div>
 
       <div class="dropdown" id="dropdown">
-        ${count > 0 ? `<div class="legend-bar"><div class="legend-items">${legend}</div></div>` : ""}
-        ${this._renderChipControls(count, t)}
+        <div class="legend-bar">
+          <div class="legend-items">${legend}</div>
+          ${this._renderChipControls(count, t)}
+        </div>
         ${this._autoClearSettingsOpen ? this._renderAutoClearSettingsPanel(t) : ""}
         ${itemsHtml}
         ${emptyState}
