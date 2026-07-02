@@ -25,7 +25,7 @@ const NOTIFICATION_CARD_I18N = {
     infoAutoClear: "Info",
     warningAutoClear: "Warning",
     criticalAutoClear: "Critical",
-    seconds: "seconds",
+    minutes: "minutes",
     zeroDisables: "0 disables auto-clear",
     save: "Save",
     saved: "Saved",
@@ -55,7 +55,7 @@ const NOTIFICATION_CARD_I18N = {
     infoAutoClear: "資訊",
     warningAutoClear: "警告",
     criticalAutoClear: "緊急",
-    seconds: "秒",
+    minutes: "分鐘",
     zeroDisables: "0 表示不自動消失",
     save: "儲存",
     saved: "已儲存",
@@ -84,16 +84,16 @@ function notificationCardAutoClearDefaults(hass, entityId = "sensor.notification
   const attrs = hass?.states?.[entityId]?.attributes || {};
   const defaults = attrs.auto_clear_defaults || {};
   return {
-    info: Number(defaults.info ?? 3600),
+    info: Number(defaults.info ?? 60),
     warning: Number(defaults.warning ?? 0),
     critical: Number(defaults.critical ?? 0),
   };
 }
 
-function notificationCardClampSeconds(value) {
+function notificationCardClampMinutes(value) {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) return 0;
-  return Math.min(Math.max(parsed, 0), 604800);
+  return Math.min(Math.max(parsed, 0), 10080);
 }
 
 function notificationCardTimeAgo(hass, ts) {
@@ -844,9 +844,9 @@ class HaNotificationCenterCard extends HTMLElement {
     return `
       <div class="auto-clear-panel">
         <div class="auto-clear-title">${t("autoClearSettings")}</div>
-        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="604800" step="1" value="${defaults.info}"><span>${t("seconds")}</span></label>
-        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="604800" step="1" value="${defaults.warning}"><span>${t("seconds")}</span></label>
-        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="604800" step="1" value="${defaults.critical}"><span>${t("seconds")}</span></label>
+        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="10080" step="1" value="${defaults.info}"><span>${t("minutes")}</span></label>
+        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="10080" step="1" value="${defaults.warning}"><span>${t("minutes")}</span></label>
+        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="10080" step="1" value="${defaults.critical}"><span>${t("minutes")}</span></label>
         <div class="auto-clear-footer"><span>${t("zeroDisables")}</span><button class="auto-clear-save-btn" type="button">${t("save")}</button></div>
         ${this._autoClearSaved ? `<div class="auto-clear-saved">${t("saved")}</div>` : ""}
       </div>
@@ -856,12 +856,12 @@ class HaNotificationCenterCard extends HTMLElement {
   _saveAutoClearDefaults() {
     const values = { info: 0, warning: 0, critical: 0 };
     this.shadowRoot.querySelectorAll(".auto-clear-input").forEach((input) => {
-      values[input.dataset.priority] = notificationCardClampSeconds(input.value);
+      values[input.dataset.priority] = notificationCardClampMinutes(input.value);
     });
     this._hass.callService("ha_notification_center", "set_auto_clear_defaults", {
-      info_seconds: values.info,
-      warning_seconds: values.warning,
-      critical_seconds: values.critical,
+      info_minutes: values.info,
+      warning_minutes: values.warning,
+      critical_minutes: values.critical,
     });
     this._autoClearSaved = true;
     this._render();
@@ -1336,9 +1336,9 @@ class NotificationChipCard extends HTMLElement {
     const defaults = notificationCardAutoClearDefaults(this._hass, this._config.entity || "sensor.notification_feed");
     return `
       <div class="auto-clear-panel">
-        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="604800" step="1" value="${defaults.info}"><span>${t("seconds")}</span></label>
-        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="604800" step="1" value="${defaults.warning}"><span>${t("seconds")}</span></label>
-        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="604800" step="1" value="${defaults.critical}"><span>${t("seconds")}</span></label>
+        <label>${t("infoAutoClear")}<input class="auto-clear-input" data-priority="info" type="number" min="0" max="10080" step="1" value="${defaults.info}"><span>${t("minutes")}</span></label>
+        <label>${t("warningAutoClear")}<input class="auto-clear-input" data-priority="warning" type="number" min="0" max="10080" step="1" value="${defaults.warning}"><span>${t("minutes")}</span></label>
+        <label>${t("criticalAutoClear")}<input class="auto-clear-input" data-priority="critical" type="number" min="0" max="10080" step="1" value="${defaults.critical}"><span>${t("minutes")}</span></label>
         <div class="auto-clear-footer"><span>${t("zeroDisables")}</span><button class="auto-clear-save-btn" type="button">${t("save")}</button></div>
         ${this._autoClearSaved ? `<div class="auto-clear-saved">${t("saved")}</div>` : ""}
       </div>`;
@@ -1347,10 +1347,10 @@ class NotificationChipCard extends HTMLElement {
   _saveAutoClearDefaults() {
     const values = { info: 0, warning: 0, critical: 0 };
     this.shadowRoot.querySelectorAll(".auto-clear-input").forEach((input) => {
-      values[input.dataset.priority] = notificationCardClampSeconds(input.value);
+      values[input.dataset.priority] = notificationCardClampMinutes(input.value);
     });
     this._hass.callService("ha_notification_center", "set_auto_clear_defaults", {
-      info_seconds: values.info, warning_seconds: values.warning, critical_seconds: values.critical,
+      info_minutes: values.info, warning_minutes: values.warning, critical_minutes: values.critical,
     });
     this._autoClearSaved = true;
     this._render();

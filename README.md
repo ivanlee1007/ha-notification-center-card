@@ -17,7 +17,7 @@ UNiNUS Notification Center 的 Lovelace 卡片，已從 integration repo 拆分�
 - 支援「預設展開」與「有緊急事件時自動展開」
 - 手動通知支援「清除」按鈕，可直接從 feed 中移除通知
 - 支援「清除所有告警」按鈕，一次清除目前 feed 內所有訊息
-- 支援在卡片 GUI 設定 info / warning / critical 三種等級的預設自動消失秒數（0 表示不自動消失）
+- 支援在卡片 GUI 設定 info / warning / critical 三種等級的預設自動消失分鐘數（0 表示不自動消失）
 
 > 這個 repo 只提供前端卡片。後端通知資料、service、storage、sensor/binary_sensor 來自：
 > `https://github.com/ivanlee1007/ha-notification-center`
