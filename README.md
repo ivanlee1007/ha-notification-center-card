@@ -75,6 +75,16 @@ Lovelace resource 一般應為：
 
 ## 使用方式
 
+### 展開完整通知文字
+
+兩張卡片（`ha-notification-center-card` 與 `notification-chip-card`，含獨立 resource）預設仍將長標題與說明折疊為單行省略。
+點擊通知文字即可展開**完整標題與說明**，再次點擊即收合；也可用 Tab 聚焦文字後按 Enter 或空白鍵切換。
+展開時保留原始換行，長網址或無空白的文字會自動換行；通知清單仍可捲動。
+
+這只是每張卡片自己的前端顯示狀態，不會確認通知、呼叫服務或開啟 More Info。
+「更多操作」與展開文字彼此獨立；需要實體資訊時請使用其中的「更多資訊」按鈕。
+同一 feed 的 Home Assistant 更新／通知重新排序會保留各 `source_id` 的展開狀態；已移除的通知會清理狀態，更換 feed 則重新折疊。
+
 ```yaml
 type: custom:ha-notification-center-card
 show_chip: true
@@ -209,6 +219,24 @@ ha-notification-center-card/
 ```
 
 ---
+
+## 開發與測試
+
+修改根目錄 JavaScript 後，同步 dist 與所有 gzip：
+
+```sh
+python tools/sync_artifacts.py
+```
+
+真實 Chromium 瀏覽器回歸測試（以 Playwright 驅動，無須安裝 npm 套件）：
+
+```sh
+uv run --with playwright==1.58.0 python -m unittest discover -s tests -v
+```
+
+預設使用 Windows 已安裝的 Microsoft Edge；其他環境請將 `BROWSER_EXECUTABLE` 設為本機 Chromium／Chrome／Edge 執行檔完整路徑。
+測試涵蓋根目錄主卡、bundle chip、獨立 chip、dist 兩張卡的滑鼠／鍵盤切換、完整文字、焦點／捲動、feed 更新／切換、獨立操作，以及 gzip 與 dist 一致性。
+這是前端 fixture 測試，不會連線或部署到 Home Assistant。
 
 ## License
 

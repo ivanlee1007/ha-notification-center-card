@@ -1,0 +1,4 @@
+# Preserve reviewed JS bytes so tracked gzip payloads remain byte-identical.
+/ha-notification-center-card.js -text whitespace=cr-at-eol
+/notification-chip-card.js -text whitespace=cr-at-eol
+/dist/ha-notification-center-card.js -text whitespace=cr-at-eol

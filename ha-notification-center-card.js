@@ -109,7 +109,60 @@ function notificationCardTimeAgo(hass, ts) {
   return t("daysAgo")(d);
 }
 
+function notificationCardEscapeText(value) {
+  const text = document.createElement("span");
+  text.textContent = value ?? "";
+  return text.innerHTML;
+}
+
+function notificationCardSyncMessageState(card) {
+  const entityId = card._config?.entity || "sensor.notification_feed";
+  if (card._messageFeed !== entityId) {
+    card._messageFeed = entityId;
+    card._expandedMessages = new Set();
+  }
+  const ids = new Set((card._hass?.states?.[entityId]?.attributes?.notifications || [])
+    .map((item) => String(item.source_id ?? "")));
+  for (const id of card._expandedMessages) {
+    if (!ids.has(id)) card._expandedMessages.delete(id);
+  }
+}
+
+// Disclosure changes only this text node, preserving focus and list scroll.
+function notificationCardBindMessageDisclosure(card) {
+  card._expandedMessages ||= new Set();
+  card.shadowRoot.querySelectorAll(".body, .notif-text").forEach((message) => {
+    const sourceId = message.closest(".notif-item").dataset.source;
+    message.setAttribute("role", "button");
+    message.tabIndex = 0;
+    message.setAttribute("aria-expanded", String(card._expandedMessages.has(sourceId)));
+    message.onclick = (event) => {
+      event.stopPropagation();
+      const expanded = !card._expandedMessages.has(sourceId);
+      if (expanded) card._expandedMessages.add(sourceId);
+      else card._expandedMessages.delete(sourceId);
+      message.setAttribute("aria-expanded", String(expanded));
+    };
+    message.onkeydown = (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!event.repeat) message.click();
+    };
+  });
+  const style = document.createElement("style");
+  style.textContent = `
+    .body[role="button"], .notif-text[role="button"] { cursor: pointer; }
+    .body:focus-visible, .notif-text:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; border-radius: 4px; }
+    .body[aria-expanded="true"] > *, .notif-text[aria-expanded="true"] > * {
+      white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; text-overflow: clip;
+    }
+  `;
+  card.shadowRoot.append(style);
+}
+
 class HaNotificationCenterCard extends HTMLElement {
+  _bindMessageDisclosure() { notificationCardBindMessageDisclosure(this); }
   disconnectedCallback() {
     if (this._clickOutsideHandler) {
       document.removeEventListener("click", this._clickOutsideHandler, true);
@@ -153,6 +206,7 @@ class HaNotificationCenterCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    notificationCardSyncMessageState(this);
     this._syncOpenState();
     const renderKey = this._buildRenderKey();
     if (renderKey !== this._lastRenderKey) {
@@ -171,6 +225,7 @@ class HaNotificationCenterCard extends HTMLElement {
     const feed = this._hass.states?.[this._config.entity];
     const anyCritical = this._hass.states?.[this._config.critical_entity];
     return JSON.stringify({
+      entity: this._config.entity,
       feedState: feed?.state ?? null,
       criticalState: anyCritical?.state ?? null,
       notifications: feed?.attributes?.notifications || [],
@@ -342,7 +397,7 @@ class HaNotificationCenterCard extends HTMLElement {
 
         /* ══ Panel ══ */
         .panel { margin-top: 16px; }
-        
+
 
 
         .panel-controls {
@@ -800,26 +855,7 @@ class HaNotificationCenterCard extends HTMLElement {
       };
     });
 
-    // Event delegation for notification body clicks (survives DOM rebuilds)
-    if (!this._bodyClickBound) {
-      this._bodyClickBound = true;
-      this.shadowRoot.addEventListener("click", (ev) => {
-        // Body/icon click → more-info only (action moved to dedicated button)
-        const item = ev.target.closest(".notif-item .body, .notif-item .icon-box, .notif-item .name");
-        if (!item) return;
-        const notifItem = item.closest(".notif-item");
-        if (!notifItem) return;
-        ev.stopPropagation();
-        const entity = notifItem.dataset.entity || "";
-        if (entity && this._hass) {
-          this.fireEvent("hass-more-info", { entityId: entity });
-        }
-      });
-    }
-    // Set cursor pointer on body elements
-    this.shadowRoot.querySelectorAll(".notif-item .body").forEach((el) => {
-      el.style.cursor = "pointer";
-    });
+    this._bindMessageDisclosure();
 
     const nextListEl = this.shadowRoot.querySelector(".notif-list");
     if (nextListEl && prevScrollTop > 0) {
@@ -1129,6 +1165,7 @@ if (!window.customCards.some((card) => card.type === "custom:ha-notification-cen
  */
 
 class NotificationChipCard extends HTMLElement {
+  _bindMessageDisclosure() { notificationCardBindMessageDisclosure(this); }
   setConfig(config) {
     this._config = {
       label: "",
@@ -1136,7 +1173,7 @@ class NotificationChipCard extends HTMLElement {
       auto_open_critical: false,
       ...config,
     };
-    this.attachShadow({ mode: "open" });
+    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._expandedActions = null;
     this._clickOutsideHandler = null;
   }
@@ -1157,6 +1194,7 @@ class NotificationChipCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    notificationCardSyncMessageState(this);
     this._syncOpenState();
     const renderKey = this._buildRenderKey();
     if (renderKey !== this._lastRenderKey) {
@@ -1181,6 +1219,7 @@ class NotificationChipCard extends HTMLElement {
     if (!this._hass || !this._config) return "init";
     const entity = this._hass.states[this._config.entity || "sensor.notification_feed"];
     return JSON.stringify({
+      entity: this._config.entity || "sensor.notification_feed",
       entityState: entity?.state ?? null,
       notifications: entity?.attributes?.notifications || [],
       label: this._config.label || "",
@@ -1246,7 +1285,7 @@ class NotificationChipCard extends HTMLElement {
     this._render();
   }
 
-  _handleChipClick() { 
+  _handleChipClick() {
     this._dropdownOpen = !this._dropdownOpen;
     if (!this._dropdownOpen) this._expandedActions = null;
     this._render();
@@ -1416,8 +1455,8 @@ class NotificationChipCard extends HTMLElement {
               <ha-icon icon="${item.icon || "mdi:bell-outline"}"></ha-icon>
             </div>
             <div class="notif-text">
-              <div class="notif-title">${item.name || ""}</div>
-              ${item.description ? `<div class="notif-desc">${item.description}</div>` : ""}
+              <div class="notif-title">${notificationCardEscapeText(item.name)}</div>
+              ${item.description ? `<div class="notif-desc">${notificationCardEscapeText(item.description)}</div>` : ""}
             </div>
             <div class="notif-actions">
               ${ago ? `<span class="notif-time">${ago}</span>` : ""}
@@ -1724,10 +1763,7 @@ class NotificationChipCard extends HTMLElement {
       });
     });
 
-    // Tap notification body/icon → more-info only
-    this.shadowRoot.querySelectorAll(".notif-content[data-entity]").forEach(el => {
-      el.addEventListener("click", () => this._handleTap(el));
-    });
+    this._bindMessageDisclosure();
 
     // More-actions toggle buttons
     this.shadowRoot.querySelectorAll(".more-btn").forEach(el => {
